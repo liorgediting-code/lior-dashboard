@@ -65,7 +65,10 @@ export function StepsEditor({ name, defaultValue }: { name: string; defaultValue
         <div
           key={row.key}
           draggable
-          onDragStart={() => setDragKey(row.key)}
+          onDragStart={(e) => {
+            setDragKey(row.key);
+            e.dataTransfer.setData("text/plain", String(row.key));
+          }}
           onDragOver={(e) => e.preventDefault()}
           onDrop={() => reorder(row.key)}
           className="flex items-center gap-2 rounded-lg border border-slate-200 p-2"
