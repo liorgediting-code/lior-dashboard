@@ -6,6 +6,7 @@ const bodySchema = z.object({
   client_id: z.string().uuid(),
   name: z.string().optional(),
   phone: z.string().optional(),
+  email: z.string().optional(),
 });
 
 /**
@@ -23,6 +24,7 @@ export async function POST(req: NextRequest) {
     client_id: parsed.data.client_id,
     name: parsed.data.name ?? null,
     phone: parsed.data.phone ?? null,
+    email: parsed.data.email ?? null,
   });
 
   return NextResponse.json({ ok: true, leadId: lead.id });
