@@ -6,7 +6,7 @@ export function TokenField({ name, defaultValue }: { name: string; defaultValue:
   const [visible, setVisible] = useState(false);
   return (
     <div className="flex gap-2">
-      <input className="input font-mono" type={visible ? "text" : "password"} name={name} defaultValue={defaultValue} />
+      <input className="input font-mono" id={name} type={visible ? "text" : "password"} name={name} defaultValue={defaultValue} />
       <button type="button" className="btn btn-secondary" onClick={() => setVisible((v) => !v)}>
         {visible ? "הסתר" : "הצג"}
       </button>

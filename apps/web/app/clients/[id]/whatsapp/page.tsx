@@ -3,9 +3,16 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { ClientTabs } from "@/components/client-tabs";
 import { StepsEditor } from "@/components/steps-editor";
 import { createAutomation } from "@/lib/actions/whatsapp";
+import { stepToRow } from "@/lib/forms/steps";
 import type { Client, WhatsappAutomation } from "@dashboard-lior/shared";
 
 export const dynamic = "force-dynamic";
+
+const UNIT_LABELS: Record<"minutes" | "hours" | "days", string> = {
+  minutes: "דקות",
+  hours: "שעות",
+  days: "ימים",
+};
 
 async function createAutomationAction(clientId: string, formData: FormData) {
   "use server";
@@ -40,7 +47,12 @@ export default async function ClientWhatsappPage({ params }: { params: { id: str
               {auto.steps.map((step, i) => (
                 <li key={i}>
                   {i + 1}.{" "}
-                  {step.type === "message" ? `הודעה: "${step.text}"` : `המתנה: ${step.wait_minutes} דקות`}
+                  {step.type === "message"
+                    ? `הודעה: "${step.text}"`
+                    : (() => {
+                        const row = stepToRow(step);
+                        return row.type === "wait" ? `המתנה: ${row.amount} ${UNIT_LABELS[row.unit]}` : "";
+                      })()}
                 </li>
               ))}
             </ol>

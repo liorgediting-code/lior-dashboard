@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { WhatsappAutomationStep } from "@dashboard-lior/shared";
 import { serializeSteps, stepToRow, type StepRow, type StepUnit } from "@/lib/forms/steps";
 
@@ -16,6 +16,8 @@ function toRows(steps: WhatsappAutomationStep[]): Row[] {
 export function StepsEditor({ name, defaultValue }: { name: string; defaultValue: WhatsappAutomationStep[] }) {
   const [rows, setRows] = useState<Row[]>(() => toRows(defaultValue));
   const [dragKey, setDragKey] = useState<number | null>(null);
+  const serialized = useMemo(() => serializeSteps(rows), [rows]);
+  const isEmpty = serialized === "[]";
 
   function addRow() {
     setRows((prev) => [...prev, { type: "message", text: "", key: nextKey++ }]);
@@ -70,7 +72,10 @@ export function StepsEditor({ name, defaultValue }: { name: string; defaultValue
             e.dataTransfer.setData("text/plain", String(row.key));
           }}
           onDragOver={(e) => e.preventDefault()}
-          onDrop={() => reorder(row.key)}
+          onDrop={(e) => {
+            e.preventDefault();
+            reorder(row.key);
+          }}
           className="flex items-center gap-2 rounded-lg border border-slate-200 p-2"
         >
           <span className="cursor-move text-slate-400" title="גרור לשינוי סדר">
@@ -109,10 +114,13 @@ export function StepsEditor({ name, defaultValue }: { name: string; defaultValue
           </button>
         </div>
       ))}
-      <button type="button" className="btn btn-secondary" onClick={addRow}>
-        + הוסף שלב
-      </button>
-      <input type="hidden" name={name} value={serializeSteps(rows)} />
+      <div className="flex items-center gap-2">
+        <button type="button" className="btn btn-secondary" onClick={addRow}>
+          + הוסף שלב
+        </button>
+        {isEmpty && <span className="text-sm text-red-600">יש להוסיף לפחות שלב אחד</span>}
+      </div>
+      <input type="hidden" name={name} value={serialized} />
     </div>
   );
 }

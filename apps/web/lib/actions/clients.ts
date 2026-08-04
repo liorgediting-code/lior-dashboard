@@ -133,7 +133,7 @@ export async function updateClientFromForm(clientId: string, formData: FormData)
     try {
       driveLinks = JSON.parse(rawDriveLinks) as DriveLink[];
     } catch {
-      throw new Error("כפתורי Drive: JSON לא תקין. פורמט לדוגמה: [{\"label\": \"תיקייה\", \"url\": \"https://...\"}]");
+      throw new Error("כפתורי Drive: פורמט לא תקין.");
     }
   }
 
