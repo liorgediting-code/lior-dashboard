@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { updateClientFromForm } from "@/lib/actions/clients";
 import type { Client } from "@dashboard-lior/shared";
+import { DriveLinksEditor } from "@/components/drive-links-editor";
 
 export const dynamic = "force-dynamic";
 
@@ -112,13 +113,7 @@ export default async function EditClientPage({ params }: { params: { id: string 
 
         <div className="card space-y-4">
           <h2 className="font-semibold">כפתורי Drive</h2>
-          <p className="text-sm text-slate-500">מערך JSON: [{"{"}"label": "תיקייה", "url": "https://..."{"}"}]</p>
-          <textarea
-            className="input font-mono"
-            name="drive_links"
-            rows={4}
-            defaultValue={JSON.stringify(c.drive_links ?? [], null, 2)}
-          />
+          <DriveLinksEditor name="drive_links" defaultValue={c.drive_links ?? []} />
         </div>
 
         <div className="card space-y-4">
