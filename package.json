@@ -1,0 +1,17 @@
+{
+  "name": "dashboard-lior",
+  "private": true,
+  "workspaces": [
+    "apps/web",
+    "apps/mcp-server",
+    "packages/shared"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=apps/web",
+    "build": "npm run build --workspace=apps/web",
+    "lint": "npm run lint --workspace=apps/web",
+    "test": "npm run test --workspace=apps/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "mcp:build": "npm run build --workspace=apps/mcp-server"
+  }
+}

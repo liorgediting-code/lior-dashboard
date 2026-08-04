@@ -1,0 +1,25 @@
+{
+  "name": "@dashboard-lior/mcp-server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "dashboard-lior-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@dashboard-lior/shared": "*",
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "@supabase/supabase-js": "^2.45.4",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.16.10",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2"
+  }
+}
