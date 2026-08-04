@@ -5,6 +5,7 @@ const links = [
   { href: "/clients", label: "לקוחות" },
   { href: "/missions", label: "משימות" },
   { href: "/kill-queue", label: "תור הריגה" },
+  { href: "/settings", label: "הגדרות" },
 ];
 
 export function Nav() {
