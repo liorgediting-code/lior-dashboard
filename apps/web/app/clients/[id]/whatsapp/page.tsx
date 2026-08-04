@@ -1,20 +1,11 @@
 import { notFound } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { ClientTabs } from "@/components/client-tabs";
+import { StepsEditor } from "@/components/steps-editor";
 import { createAutomation } from "@/lib/actions/whatsapp";
 import type { Client, WhatsappAutomation } from "@dashboard-lior/shared";
 
 export const dynamic = "force-dynamic";
-
-const EXAMPLE_STEPS = JSON.stringify(
-  [
-    { type: "message", text: "היי! תודה שהשארת פרטים 🙌 מתי נוח לך שנדבר?" },
-    { type: "wait", wait_minutes: 1440 },
-    { type: "message", text: "רק בודקים שלא פספסת אותנו — עדיין רלוונטי?" },
-  ],
-  null,
-  2
-);
 
 async function createAutomationAction(clientId: string, formData: FormData) {
   "use server";
@@ -75,10 +66,8 @@ export default async function ClientWhatsappPage({ params }: { params: { id: str
           <input className="input" id="green_api_instance_id" name="green_api_instance_id" placeholder="ריק = מצב Mock מקומי" />
         </div>
         <div>
-          <label className="label" htmlFor="steps">
-            שלבים (JSON)
-          </label>
-          <textarea className="input font-mono" id="steps" name="steps" rows={8} defaultValue={EXAMPLE_STEPS} />
+          <label className="label">שלבים</label>
+          <StepsEditor name="steps" defaultValue={[]} />
         </div>
         <button type="submit" className="btn btn-primary">
           + צור אוטומציה
