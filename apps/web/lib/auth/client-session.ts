@@ -25,7 +25,13 @@ export function verifyClientSession(cookieValue: string | undefined): { clientId
 
   const [clientId, expiresAtStr, signature] = parts;
   const payload = `${clientId}.${expiresAtStr}`;
-  const expectedSignature = createHmac("sha256", getSecret()).update(payload).digest("hex");
+
+  let expectedSignature: string;
+  try {
+    expectedSignature = createHmac("sha256", getSecret()).update(payload).digest("hex");
+  } catch {
+    return null;
+  }
 
   const expectedBuf = Buffer.from(expectedSignature, "hex");
   const actualBuf = Buffer.from(signature, "hex");

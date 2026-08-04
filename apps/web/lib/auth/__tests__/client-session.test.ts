@@ -29,4 +29,11 @@ describe("signClientSession / verifyClientSession", () => {
   it("rejects a malformed token", () => {
     expect(verifyClientSession("not.a.valid.token.at.all")).toBeNull();
   });
+
+  it("returns null instead of throwing when SESSION_SECRET is unset", () => {
+    const token = signClientSession("client-123");
+    delete process.env.SESSION_SECRET;
+    expect(() => verifyClientSession(token)).not.toThrow();
+    expect(verifyClientSession(token)).toBeNull();
+  });
 });
