@@ -7,13 +7,20 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { hashPassword, verifyPassword, generateRandomPassword } from "@/lib/auth/password";
 import { CLIENT_SESSION_COOKIE_NAME, SESSION_MAX_AGE_SECONDS, signClientSession } from "@/lib/auth/client-session";
 
+// Syntactically valid (but never-matching) salt:hash pair used to keep
+// verifyPassword's scrypt cost constant when a client has no real hash yet —
+// otherwise a missing hash short-circuits before scrypt runs, letting an
+// attacker infer client existence/password-configured status from timing.
+const DUMMY_HASH_FOR_TIMING_SAFETY = `${"0".repeat(32)}:${"0".repeat(128)}`;
+
 export async function loginClientAction(clientId: string, formData: FormData) {
   const password = String(formData.get("password") ?? "");
   const supabase = supabaseAdmin();
   const { data: client } = await supabase.from("clients").select("crm_password_hash").eq("id", clientId).maybeSingle();
-  const hash = client?.crm_password_hash as string | null;
+  const hash = (client?.crm_password_hash as string | null) ?? DUMMY_HASH_FOR_TIMING_SAFETY;
+  const passwordOk = await verifyPassword(password, hash);
 
-  if (!hash || !(await verifyPassword(password, hash))) {
+  if (!client?.crm_password_hash || !passwordOk) {
     redirect(`/client/${clientId}/login?error=1`);
   }
 
