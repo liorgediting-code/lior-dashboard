@@ -6,17 +6,11 @@ const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
 
 /**
  * Real Meta Marketing API client. Correctly shaped against the Graph API,
- * but cannot be exercised end-to-end without META_APP_ID/META_APP_SECRET
- * and a real ad account — see lib/meta/mock-client.ts for local/demo use
- * (selected automatically when META_USE_MOCK=true).
+ * but cannot be exercised end-to-end without a system-level access token
+ * (set on /settings) and a real ad account — see lib/meta/mock-client.ts
+ * for local/demo use (selected automatically when META_USE_MOCK=true).
  */
 export class RealMetaClient implements MetaClient {
-  constructor(
-    private readonly appId: string,
-    private readonly appSecret: string,
-    private readonly redirectUri: string
-  ) {}
-
   async fetchDailyInsights(
     adAccountId: string,
     accessToken: string,

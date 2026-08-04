@@ -17,13 +17,6 @@ export function getMetaClient(): MetaClient {
     return cached;
   }
 
-  const appId = process.env.META_APP_ID;
-  const appSecret = process.env.META_APP_SECRET;
-  const redirectUri = process.env.META_REDIRECT_URI;
-  if (!appId || !appSecret || !redirectUri) {
-    throw new Error("META_USE_MOCK=false requires META_APP_ID, META_APP_SECRET and META_REDIRECT_URI to be set");
-  }
-
-  cached = new RealMetaClient(appId, appSecret, redirectUri);
+  cached = new RealMetaClient();
   return cached;
 }

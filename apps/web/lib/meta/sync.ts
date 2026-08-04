@@ -49,7 +49,8 @@ async function findOrCreateAd(adsetId: string, metaId: string, name: string) {
  * Pulls the last `lookbackDays` of insights for one client and upserts
  * campaigns/adsets/ads/ad_metrics_daily. Called per-client from
  * /api/cron/daily-ad-sync. Works against the mock Meta client out of the
- * box; against the real one once a client has completed OAuth.
+ * box; against the real one once a system-level Meta token is configured
+ * on /settings and the client has a `meta_ad_account_id` set.
  */
 export async function syncClientAdMetrics(clientId: string, lookbackDays = 3) {
   const supabase = supabaseAdmin();

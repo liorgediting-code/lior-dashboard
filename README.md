@@ -63,7 +63,8 @@ npm run build --workspace=apps/web
 כברירת מחדל `META_USE_MOCK=true` ו-`GREEN_API_USE_MOCK=true` — כל הזרימה
 עובדת מקצה לקצה עם נתונים מדומים. כדי לחבר בפועל:
 
-- **Meta Ads**: `META_APP_ID` / `META_APP_SECRET` / `META_USE_MOCK=false`
+- **Meta Ads**: הגדר `META_USE_MOCK=false`, הדבק Meta System User Token בעמוד
+  `/settings`, ולאחר מכן קבע Ad Account ID לכל לקוח בעמוד העריכה שלו
 - **Green API (WhatsApp)**: `GREEN_API_TOKEN` / `GREEN_API_USE_MOCK=false`
 - **Telegram alerts**: `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID`
 - **AI Insights**: `ANTHROPIC_API_KEY`
