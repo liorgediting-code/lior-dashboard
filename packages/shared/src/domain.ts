@@ -259,3 +259,10 @@ export type ClientCurrentMetrics = {
   close_rate_pct: number | null;
   cost_per_deal: number | null;
 };
+
+export type AppSettings = {
+  id: number;
+  meta_system_user_token: string | null;
+  meta_business_id: string | null;
+  updated_at: string;
+};

@@ -28,6 +28,7 @@ import type {
   AiInsight,
   SopBottleneck,
   ClientCurrentMetrics,
+  AppSettings,
 } from "./domain";
 
 // supabase-js's GenericTable/GenericView require a `Relationships` array
@@ -93,6 +94,7 @@ export type Database = {
         ]
       >;
       ai_insights: Table<AiInsight>;
+      app_settings: Table<AppSettings>;
     };
     Views: {
       sop_bottlenecks: { Row: SopBottleneck; Relationships: [] };
