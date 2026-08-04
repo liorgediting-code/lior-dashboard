@@ -11,7 +11,6 @@
 export type FunnelStage = "TOFU" | "MOFU" | "BOFU";
 export type MissionPriority = "low" | "medium" | "high";
 export type MissionStatus = "open" | "in_progress" | "done";
-export type LeadStage = "new" | "contacted" | "qualified" | "won" | "lost";
 export type GateStatus = "pending" | "approved";
 export type KillQueueStatus = "pending" | "approved" | "dismissed";
 export type AlertType = "questionnaire_overdue" | "gate_stuck" | "cpl_breach";
@@ -146,11 +145,34 @@ export type Lead = {
   client_id: string;
   name: string | null;
   phone: string | null;
+  email: string | null;
   source_ad_id: string | null;
-  stage: LeadStage;
+  status_id: string;
+  custom_fields: Record<string, string | number>;
   created_at: string;
   closed_at: string | null;
   deal_value: number | null;
+};
+
+export type LeadStatusKind = "open" | "won" | "lost";
+
+export type LeadStatus = {
+  id: string;
+  client_id: string;
+  label: string;
+  kind: LeadStatusKind;
+  sort_order: number;
+  is_default: boolean;
+};
+
+export type LeadColumnType = "text" | "number";
+
+export type LeadColumn = {
+  id: string;
+  client_id: string;
+  name: string;
+  type: LeadColumnType;
+  sort_order: number;
 };
 
 export type WeeklyReport = {

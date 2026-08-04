@@ -18,6 +18,8 @@ import type {
   CplThresholdHistoryRow,
   KillQueueItem,
   Lead,
+  LeadStatus,
+  LeadColumn,
   WeeklyReport,
   SopGate,
   SopGateEvent,
@@ -68,6 +70,8 @@ export type Database = {
       cpl_threshold_history: Table<CplThresholdHistoryRow>;
       kill_queue_items: Table<KillQueueItem, ClientFk<"kill_queue_items">>;
       leads: Table<Lead>;
+      lead_statuses: Table<LeadStatus, ClientFk<"lead_statuses">>;
+      lead_columns: Table<LeadColumn, ClientFk<"lead_columns">>;
       weekly_reports: Table<WeeklyReport>;
       sop_gates: Table<SopGate>;
       sop_gate_events: Table<SopGateEvent>;
