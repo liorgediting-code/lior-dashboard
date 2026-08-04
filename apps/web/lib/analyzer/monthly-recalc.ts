@@ -38,11 +38,18 @@ export async function recalcClientMaxCpl(clientId: string, profitRatio: number) 
     return { clientId, updated: false, reason: "not enough real closes yet" };
   }
 
+  const { data: wonStatus } = await supabase
+    .from("lead_statuses")
+    .select("id")
+    .eq("client_id", clientId)
+    .eq("kind", "won")
+    .maybeSingle();
+
   const { data: wonLeads } = await supabase
     .from("leads")
     .select("deal_value")
     .eq("client_id", clientId)
-    .eq("stage", "won")
+    .eq("status_id", wonStatus?.id ?? "")
     .gte("created_at", since);
 
   const values = (wonLeads ?? []).map((l) => l.deal_value as number | null).filter((v): v is number => v != null);

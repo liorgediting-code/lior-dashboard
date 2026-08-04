@@ -9,11 +9,16 @@ export default async function DashboardHomePage() {
   const supabase = supabaseAdmin();
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
+  const { data: wonStatuses } = await supabase.from("lead_statuses").select("id").eq("kind", "won");
+  const wonStatusIds = (wonStatuses ?? []).map((s) => s.id as string);
+
   const [{ data: bottlenecks }, { data: clients }, { data: metrics }, { data: wonLeads }] = await Promise.all([
     supabase.from("sop_bottlenecks").select("*").order("days_stuck", { ascending: false }),
     supabase.from("clients").select("id"),
     supabase.from("ad_metrics_daily").select("spend").gte("date", since),
-    supabase.from("leads").select("deal_value").eq("stage", "won").gte("created_at", since),
+    wonStatusIds.length
+      ? supabase.from("leads").select("deal_value").in("status_id", wonStatusIds).gte("created_at", since)
+      : Promise.resolve({ data: [] as { deal_value: number | null }[] }),
   ]);
 
   const totalSpend = (metrics ?? []).reduce((sum, m) => sum + Number(m.spend), 0);
