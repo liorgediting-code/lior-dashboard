@@ -41,9 +41,11 @@ export async function deleteLeadStatus(statusId: string, clientId: string) {
 
   const plan = planStatusDeletion((statuses ?? []) as LeadStatus[], statusId);
 
-  await supabase.from("leads").update({ status_id: plan.reassignToStatusId }).eq("status_id", statusId);
+  const { error: reassignError } = await supabase.from("leads").update({ status_id: plan.reassignToStatusId }).eq("status_id", statusId);
+  if (reassignError) throw new Error(reassignError.message);
   if (plan.newDefaultStatusId) {
-    await supabase.from("lead_statuses").update({ is_default: true }).eq("id", plan.newDefaultStatusId);
+    const { error: promoteError } = await supabase.from("lead_statuses").update({ is_default: true }).eq("id", plan.newDefaultStatusId);
+    if (promoteError) throw new Error(promoteError.message);
   }
   const { error } = await supabase.from("lead_statuses").delete().eq("id", statusId);
   if (error) throw new Error(error.message);
@@ -52,7 +54,8 @@ export async function deleteLeadStatus(statusId: string, clientId: string) {
 
 export async function setDefaultLeadStatus(statusId: string, clientId: string) {
   const supabase = supabaseAdmin();
-  await supabase.from("lead_statuses").update({ is_default: false }).eq("client_id", clientId).eq("is_default", true);
+  const { error: clearError } = await supabase.from("lead_statuses").update({ is_default: false }).eq("client_id", clientId).eq("is_default", true);
+  if (clearError) throw new Error(clearError.message);
   const { error } = await supabase.from("lead_statuses").update({ is_default: true }).eq("id", statusId);
   if (error) throw new Error(error.message);
   revalidateCrm(clientId);
