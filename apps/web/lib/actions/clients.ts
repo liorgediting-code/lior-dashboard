@@ -84,6 +84,7 @@ export interface UpdateClientInput {
   price_range_low?: number | null;
   price_range_high?: number | null;
   profit_ratio?: number;
+  meta_ad_account_id?: string | null;
   drive_links?: DriveLink[];
   strategy_call_recording_url?: string | null;
   strategy_call_transcript_url?: string | null;
@@ -147,6 +148,7 @@ export async function updateClientFromForm(clientId: string, formData: FormData)
     price_range_low: numOrNull(formData, "price_range_low"),
     price_range_high: numOrNull(formData, "price_range_high"),
     profit_ratio: numOrNull(formData, "profit_ratio") ?? 5,
+    meta_ad_account_id: String(formData.get("meta_ad_account_id") ?? "").trim() || null,
     drive_links: driveLinks,
     strategy_call_recording_url: String(formData.get("strategy_call_recording_url") ?? "") || null,
     strategy_call_transcript_url: String(formData.get("strategy_call_transcript_url") ?? "") || null,

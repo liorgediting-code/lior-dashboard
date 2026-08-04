@@ -91,6 +91,26 @@ export default async function EditClientPage({ params }: { params: { id: string 
         </div>
 
         <div className="card space-y-4">
+          <h2 className="font-semibold">חיבור Meta Ads</h2>
+          <p className="text-sm text-slate-500">
+            הטוקן המערכתי מוגדר במסך <a href="/settings" className="underline">ההגדרות</a>. כאן קובעים רק לאיזה חשבון פרסום
+            של הלקוח הזה להתחבר.
+          </p>
+          <div>
+            <label className="label" htmlFor="meta_ad_account_id">
+              Ad Account ID
+            </label>
+            <input
+              className="input font-mono"
+              id="meta_ad_account_id"
+              name="meta_ad_account_id"
+              placeholder="act_1234567890"
+              defaultValue={c.meta_ad_account_id ?? ""}
+            />
+          </div>
+        </div>
+
+        <div className="card space-y-4">
           <h2 className="font-semibold">כפתורי Drive</h2>
           <p className="text-sm text-slate-500">מערך JSON: [{"{"}"label": "תיקייה", "url": "https://..."{"}"}]</p>
           <textarea
