@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { ClientTabs } from "@/components/client-tabs";
-import { getMetaClient } from "@/lib/meta";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import type { Client, Campaign, AdSet, Ad, AdMetricDaily } from "@dashboard-lior/shared";
 
@@ -41,8 +41,6 @@ export default async function ClientCampaignsPage({ params }: { params: { id: st
     totalsByAd.set(m.ad_id, cur);
   }
 
-  const meta = getMetaClient();
-  const authUrl = meta.getAuthorizationUrl(c.id);
   const isConnected = Boolean(c.meta_ad_account_id);
 
   return (
@@ -52,9 +50,17 @@ export default async function ClientCampaignsPage({ params }: { params: { id: st
 
       <div className="mb-4 flex items-center justify-between">
         <p className="text-sm text-slate-500">30 הימים האחרונים</p>
-        <a href={authUrl} className="btn btn-secondary">
-          {isConnected ? `מחובר: ${c.meta_ad_account_id}` : "התחבר ל-Meta Ads"}
-        </a>
+        <div className="flex items-center gap-2">
+          <span className={isConnected ? "badge badge-winner" : "badge badge-insufficient"}>
+            {isConnected ? `מחובר: ${c.meta_ad_account_id}` : "לא הוגדר חשבון פרסום"}
+          </span>
+          <Link href={`/clients/${c.id}/edit`} className="btn btn-secondary">
+            ערוך חשבון פרסום
+          </Link>
+          <Link href="/settings" className="btn btn-secondary">
+            הגדרות Meta
+          </Link>
+        </div>
       </div>
 
       <div className="space-y-6">

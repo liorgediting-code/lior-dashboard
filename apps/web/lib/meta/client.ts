@@ -1,5 +1,5 @@
 import "server-only";
-import type { MetaClient, MetaAdInsight, MetaTokenExchangeResult } from "./types";
+import type { MetaClient, MetaAdInsight } from "./types";
 
 const GRAPH_API_VERSION = "v21.0";
 const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
@@ -16,38 +16,6 @@ export class RealMetaClient implements MetaClient {
     private readonly appSecret: string,
     private readonly redirectUri: string
   ) {}
-
-  getAuthorizationUrl(state: string): string {
-    const params = new URLSearchParams({
-      client_id: this.appId,
-      redirect_uri: this.redirectUri,
-      state,
-      scope: "ads_read,ads_management,business_management",
-    });
-    return `https://www.facebook.com/${GRAPH_API_VERSION}/dialog/oauth?${params.toString()}`;
-  }
-
-  async exchangeCodeForToken(code: string): Promise<MetaTokenExchangeResult> {
-    const params = new URLSearchParams({
-      client_id: this.appId,
-      client_secret: this.appSecret,
-      redirect_uri: this.redirectUri,
-      code,
-    });
-    const res = await fetch(`${GRAPH_BASE}/oauth/access_token?${params.toString()}`);
-    if (!res.ok) throw new Error(`Meta token exchange failed: ${res.status} ${await res.text()}`);
-    const data = (await res.json()) as { access_token: string };
-
-    // Ad account selection happens via a follow-up "me/adaccounts" call in
-    // the real OAuth callback route once there's a token to use.
-    const accountsRes = await fetch(
-      `${GRAPH_BASE}/me/adaccounts?access_token=${encodeURIComponent(data.access_token)}`
-    );
-    const accounts = (await accountsRes.json()) as { data?: Array<{ id: string }> };
-    const adAccountId = accounts.data?.[0]?.id ?? "";
-
-    return { accessToken: data.access_token, adAccountId };
-  }
 
   async fetchDailyInsights(
     adAccountId: string,

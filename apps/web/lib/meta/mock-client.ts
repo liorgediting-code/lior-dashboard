@@ -1,5 +1,5 @@
 import "server-only";
-import type { MetaClient, MetaAdInsight, MetaTokenExchangeResult } from "./types";
+import type { MetaClient, MetaAdInsight } from "./types";
 
 /** Deterministic pseudo-random generator so demo runs are reproducible. */
 function seededRandom(seed: string) {
@@ -13,14 +13,6 @@ function seededRandom(seed: string) {
 
 /** Lets the whole app be demoed end-to-end without a real Meta App. */
 export class MockMetaClient implements MetaClient {
-  getAuthorizationUrl(state: string): string {
-    return `/api/meta/oauth/callback?code=mock-code&state=${encodeURIComponent(state)}`;
-  }
-
-  async exchangeCodeForToken(): Promise<MetaTokenExchangeResult> {
-    return { accessToken: "mock-access-token", adAccountId: "act_mock123" };
-  }
-
   async fetchDailyInsights(adAccountId: string, _accessToken: string, since: string, until: string): Promise<MetaAdInsight[]> {
     const rand = seededRandom(adAccountId + since + until);
     const days: string[] = [];

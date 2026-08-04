@@ -53,19 +53,18 @@ async function findOrCreateAd(adsetId: string, metaId: string, name: string) {
  */
 export async function syncClientAdMetrics(clientId: string, lookbackDays = 3) {
   const supabase = supabaseAdmin();
-  const { data: client } = await supabase
-    .from("clients")
-    .select("meta_ad_account_id, meta_access_token")
-    .eq("id", clientId)
-    .single();
+  const [{ data: client }, { data: settings }] = await Promise.all([
+    supabase.from("clients").select("meta_ad_account_id").eq("id", clientId).single(),
+    supabase.from("app_settings").select("meta_system_user_token").eq("id", 1).maybeSingle(),
+  ]);
 
   const meta = getMetaClient();
   const useMock = process.env.META_USE_MOCK !== "false";
   const adAccountId = useMock ? "act_mock123" : (client?.meta_ad_account_id as string | null);
-  const accessToken = useMock ? "mock" : (client?.meta_access_token as string | null);
+  const accessToken = useMock ? "mock" : (settings?.meta_system_user_token as string | null);
 
   if (!adAccountId || !accessToken) {
-    return { clientId, synced: 0, skipped: "no Meta connection for this client yet" };
+    return { clientId, synced: 0, skipped: "no Meta connection configured yet" };
   }
 
   const since = isoDaysAgo(lookbackDays);
