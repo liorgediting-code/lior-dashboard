@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { updateClientFromForm } from "@/lib/actions/clients";
 import type { Client } from "@dashboard-lior/shared";
 import { DriveLinksEditor } from "@/components/drive-links-editor";
+import { RegeneratePasswordButton } from "@/components/regenerate-password-button";
 
 export const dynamic = "force-dynamic";
 
@@ -89,6 +90,18 @@ export default async function EditClientPage({ params }: { params: { id: string 
             </label>
             <input className="input" id="profit_ratio" name="profit_ratio" type="number" step="any" defaultValue={c.profit_ratio} />
           </div>
+        </div>
+
+        <div className="card space-y-3">
+          <h2 className="font-semibold">פורטל הלקוח</h2>
+          <p className="text-sm text-slate-500">
+            קישור לאזור הלקוח:{" "}
+            <code className="font-mono">{`${process.env.APP_BASE_URL ?? ""}/client/${c.id}/crm`}</code>
+          </p>
+          <p className="text-sm text-slate-500">
+            {c.crm_password_hash ? "מוגדרת סיסמה." : "טרם הוגדרה סיסמה — צור אחת כדי לאפשר כניסה."}
+          </p>
+          <RegeneratePasswordButton clientId={c.id} />
         </div>
 
         <div className="card space-y-4">
