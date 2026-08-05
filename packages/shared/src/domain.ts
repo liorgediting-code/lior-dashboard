@@ -282,6 +282,21 @@ export type ClientCurrentMetrics = {
   cost_per_deal: number | null;
 };
 
+export type DailyTask = {
+  id: string;
+  title: string;
+  sort_order: number;
+  active: boolean;
+  created_at: string;
+};
+
+export type DailyTaskCompletion = {
+  id: string;
+  daily_task_id: string;
+  completed_on: string;
+  created_at: string;
+};
+
 export type AppSettings = {
   id: number;
   meta_system_user_token: string | null;

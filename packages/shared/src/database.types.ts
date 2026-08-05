@@ -31,6 +31,8 @@ import type {
   SopBottleneck,
   ClientCurrentMetrics,
   AppSettings,
+  DailyTask,
+  DailyTaskCompletion,
 } from "./domain";
 
 // supabase-js's GenericTable/GenericView require a `Relationships` array
@@ -99,6 +101,19 @@ export type Database = {
       >;
       ai_insights: Table<AiInsight>;
       app_settings: Table<AppSettings>;
+      daily_tasks: Table<DailyTask>;
+      daily_task_completions: Table<
+        DailyTaskCompletion,
+        [
+          {
+            foreignKeyName: "daily_task_completions_daily_task_id_fkey";
+            columns: ["daily_task_id"];
+            isOneToOne: false;
+            referencedRelation: "daily_tasks";
+            referencedColumns: ["id"];
+          },
+        ]
+      >;
     };
     Views: {
       sop_bottlenecks: { Row: SopBottleneck; Relationships: [] };
