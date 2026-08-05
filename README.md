@@ -39,6 +39,9 @@ cp .env.example apps/web/.env.local
 עדכן שם את `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
 `SUPABASE_SERVICE_ROLE_KEY` לפי הפלט של `supabase start`.
 
+`SESSION_SECRET` (חתימת עוגיות ההתחברות של פורטל הלקוחות) מגיע ריק בכוונה —
+חובה לייצר ערך אקראי חדש לפני כל העלאה לפרודקשן, עם `openssl rand -hex 32`.
+
 ## הרצת האפליקציה
 
 ```bash

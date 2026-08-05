@@ -4,8 +4,10 @@ export function computeStatusChangePatch(
   kind: LeadStatusKind,
   dealValue?: number | null,
   now: Date = new Date()
-): { closed_at?: string; deal_value?: number } {
-  if (kind === "open") return {};
+): { closed_at?: string | null; deal_value?: number | null } {
+  // Reverting to an open status must clear the closed-out state — a stale
+  // closed_at/deal_value would keep counting toward revenue and CPL.
+  if (kind === "open") return { closed_at: null, deal_value: null };
   const patch: { closed_at?: string; deal_value?: number } = { closed_at: now.toISOString() };
   if (kind === "won" && dealValue != null) patch.deal_value = dealValue;
   return patch;

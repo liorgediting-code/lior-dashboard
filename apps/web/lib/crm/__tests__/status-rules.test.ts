@@ -5,8 +5,8 @@ import type { LeadStatus } from "@dashboard-lior/shared";
 const NOW = new Date("2026-01-01T00:00:00.000Z");
 
 describe("computeStatusChangePatch", () => {
-  it("returns an empty patch for an open status", () => {
-    expect(computeStatusChangePatch("open", null, NOW)).toEqual({});
+  it("clears closed_at and deal_value when reverting to an open status", () => {
+    expect(computeStatusChangePatch("open", null, NOW)).toEqual({ closed_at: null, deal_value: null });
   });
 
   it("sets closed_at for a won status with no deal value", () => {

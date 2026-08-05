@@ -67,13 +67,17 @@ export async function createClient(input: CreateClientInput) {
     actor: "agency_owner",
   });
 
-  await supabase.from("lead_statuses").insert([
+  // Must not fail silently: a client with zero statuses can never receive a
+  // lead (no default status) and there's no UI path to recreate the required
+  // won/lost pair.
+  const { error: statusError } = await supabase.from("lead_statuses").insert([
     { client_id: client.id as string, label: "חדש", kind: "open", sort_order: 0, is_default: true },
     { client_id: client.id as string, label: "בקשר", kind: "open", sort_order: 1, is_default: false },
     { client_id: client.id as string, label: "מוסמך", kind: "open", sort_order: 2, is_default: false },
     { client_id: client.id as string, label: "נסגר", kind: "won", sort_order: 3, is_default: false },
     { client_id: client.id as string, label: "אבד", kind: "lost", sort_order: 4, is_default: false },
   ]);
+  if (statusError) throw new Error(statusError.message);
 
   await dispatchWebhook("client_created_questionnaire", { clientId: client.id, clientName: client.name });
 

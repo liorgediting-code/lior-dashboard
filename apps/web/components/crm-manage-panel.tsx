@@ -58,6 +58,18 @@ export function CrmManagePanel({
   const [newStatusLabel, setNewStatusLabel] = useState("");
   const [newColumnName, setNewColumnName] = useState("");
   const [newColumnType, setNewColumnType] = useState<LeadColumnType>("text");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Server actions here throw meaningful business-rule errors (e.g. "לא ניתן
+  // למחוק סטטוס קבוע") — without this they'd vanish as unhandled rejections.
+  async function runAction(fn: () => Promise<void>) {
+    setErrorMessage(null);
+    try {
+      await fn();
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "אירעה שגיאה");
+    }
+  }
 
   const sortedStatuses = [...statuses].sort((a, b) => a.sort_order - b.sort_order);
   const sortedColumns = [...columns].sort((a, b) => a.sort_order - b.sort_order);
@@ -79,24 +91,26 @@ export function CrmManagePanel({
         </button>
       </div>
 
+      {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
+
       <div>
         <h3 className="mb-2 text-sm font-medium text-slate-700">סטטוסים</h3>
         <div className="space-y-1">
           {sortedStatuses.map((status) => (
             <div key={status.id} className="flex items-center gap-2 text-sm">
               <span className="flex flex-1 items-center">
-                <EditableLabel value={status.label} onSave={(label) => renameLeadStatus(status.id, clientId, label)} />
+                <EditableLabel value={status.label} onSave={(label) => runAction(() => renameLeadStatus(status.id, clientId, label))} />
                 {status.kind !== "open" && <span className="text-xs text-slate-400"> (קבוע)</span>}
                 {status.is_default && <span className="text-xs text-slate-400"> · ברירת מחדל</span>}
               </span>
-              <button type="button" className="btn btn-secondary text-xs" onClick={() => reorderLeadStatus(status.id, clientId, "up")}>
+              <button type="button" className="btn btn-secondary text-xs" onClick={() => runAction(() => reorderLeadStatus(status.id, clientId, "up"))}>
                 ↑
               </button>
-              <button type="button" className="btn btn-secondary text-xs" onClick={() => reorderLeadStatus(status.id, clientId, "down")}>
+              <button type="button" className="btn btn-secondary text-xs" onClick={() => runAction(() => reorderLeadStatus(status.id, clientId, "down"))}>
                 ↓
               </button>
               {status.kind === "open" && !status.is_default && (
-                <button type="button" className="btn btn-secondary text-xs" onClick={() => setDefaultLeadStatus(status.id, clientId)}>
+                <button type="button" className="btn btn-secondary text-xs" onClick={() => runAction(() => setDefaultLeadStatus(status.id, clientId))}>
                   הפוך לברירת מחדל
                 </button>
               )}
@@ -105,7 +119,7 @@ export function CrmManagePanel({
                 className="btn btn-secondary text-xs disabled:cursor-not-allowed disabled:opacity-40"
                 disabled={status.kind !== "open"}
                 title={status.kind !== "open" ? "לא ניתן למחוק סטטוס קבוע (נסגר/אבד) — נדרש לחישובי הכנסות" : undefined}
-                onClick={() => deleteLeadStatus(status.id, clientId)}
+                onClick={() => runAction(() => deleteLeadStatus(status.id, clientId))}
               >
                 מחק
               </button>
@@ -114,7 +128,8 @@ export function CrmManagePanel({
         </div>
         <form
           action={() => {
-            if (newStatusLabel.trim()) createLeadStatus(clientId, newStatusLabel.trim());
+            const label = newStatusLabel.trim();
+            if (label) runAction(() => createLeadStatus(clientId, label));
             setNewStatusLabel("");
           }}
           className="mt-2 flex gap-2"
@@ -132,16 +147,16 @@ export function CrmManagePanel({
           {sortedColumns.map((col) => (
             <div key={col.id} className="flex items-center gap-2 text-sm">
               <span className="flex flex-1 items-center">
-                <EditableLabel value={col.name} onSave={(name) => renameLeadColumn(col.id, clientId, name)} />
+                <EditableLabel value={col.name} onSave={(name) => runAction(() => renameLeadColumn(col.id, clientId, name))} />
                 <span className="text-xs text-slate-400"> ({col.type === "number" ? "מספר" : "טקסט"})</span>
               </span>
-              <button type="button" className="btn btn-secondary text-xs" onClick={() => reorderLeadColumn(col.id, clientId, "up")}>
+              <button type="button" className="btn btn-secondary text-xs" onClick={() => runAction(() => reorderLeadColumn(col.id, clientId, "up"))}>
                 ↑
               </button>
-              <button type="button" className="btn btn-secondary text-xs" onClick={() => reorderLeadColumn(col.id, clientId, "down")}>
+              <button type="button" className="btn btn-secondary text-xs" onClick={() => runAction(() => reorderLeadColumn(col.id, clientId, "down"))}>
                 ↓
               </button>
-              <button type="button" className="btn btn-secondary text-xs" onClick={() => deleteLeadColumn(col.id, clientId)}>
+              <button type="button" className="btn btn-secondary text-xs" onClick={() => runAction(() => deleteLeadColumn(col.id, clientId))}>
                 מחק
               </button>
             </div>
@@ -149,7 +164,9 @@ export function CrmManagePanel({
         </div>
         <form
           action={() => {
-            if (newColumnName.trim()) createLeadColumn(clientId, newColumnName.trim(), newColumnType);
+            const name = newColumnName.trim();
+            const type = newColumnType;
+            if (name) runAction(() => createLeadColumn(clientId, name, type));
             setNewColumnName("");
           }}
           className="mt-2 flex gap-2"
