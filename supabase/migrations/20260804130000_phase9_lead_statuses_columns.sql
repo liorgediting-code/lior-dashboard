@@ -24,13 +24,42 @@ create table lead_columns (
 
 create index lead_columns_client_idx on lead_columns (client_id, sort_order);
 
+-- Seed the default 5-status set for every client that already exists at
+-- migration time. On a fresh install `clients` is empty here (this
+-- migration runs before any seed data loads), so this is a no-op; clients
+-- created afterward are seeded by the app's createClient action instead.
+insert into lead_statuses (client_id, label, kind, sort_order, is_default)
+select c.id, s.label, s.kind, s.sort_order, s.is_default
+from clients c
+cross join (values
+  ('חדש', 'open', 0, true),
+  ('בקשר', 'open', 1, false),
+  ('מוסמך', 'open', 2, false),
+  ('נסגר', 'won', 3, false),
+  ('אבד', 'lost', 4, false)
+) as s(label, kind, sort_order, is_default);
+
 alter table leads
   add column email text,
   add column status_id uuid references lead_statuses(id),
-  add column custom_fields jsonb not null default '{}',
-  drop column stage;
+  add column custom_fields jsonb not null default '{}';
+
+-- Backfill any pre-existing leads' status_id from the old stage value,
+-- mapped to the status just seeded above for that lead's own client.
+update leads le
+set status_id = ls.id
+from lead_statuses ls
+where ls.client_id = le.client_id
+  and (
+    (le.stage = 'new' and ls.label = 'חדש') or
+    (le.stage = 'contacted' and ls.label = 'בקשר') or
+    (le.stage = 'qualified' and ls.label = 'מוסמך') or
+    (le.stage = 'won' and ls.kind = 'won') or
+    (le.stage = 'lost' and ls.kind = 'lost')
+  );
 
 alter table leads alter column status_id set not null;
+alter table leads drop column stage;
 
 create index leads_client_status_idx on leads (client_id, status_id);
 
