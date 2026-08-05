@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import type { LeadStatus } from "@dashboard-lior/shared";
 import { planStatusDeletion } from "@/lib/crm/status-rules";
+import { assertCrmAccess } from "@/lib/auth/assert-crm-access";
 
 function revalidateCrm(clientId: string) {
   revalidatePath(`/clients/${clientId}/crm`);
@@ -11,6 +12,7 @@ function revalidateCrm(clientId: string) {
 }
 
 export async function createLeadStatus(clientId: string, label: string) {
+  assertCrmAccess(clientId);
   const supabase = supabaseAdmin();
   const { data: existing } = await supabase
     .from("lead_statuses")
@@ -28,13 +30,15 @@ export async function createLeadStatus(clientId: string, label: string) {
 }
 
 export async function renameLeadStatus(statusId: string, clientId: string, label: string) {
+  assertCrmAccess(clientId);
   const supabase = supabaseAdmin();
-  const { error } = await supabase.from("lead_statuses").update({ label }).eq("id", statusId);
+  const { error } = await supabase.from("lead_statuses").update({ label }).eq("id", statusId).eq("client_id", clientId);
   if (error) throw new Error(error.message);
   revalidateCrm(clientId);
 }
 
 export async function deleteLeadStatus(statusId: string, clientId: string) {
+  assertCrmAccess(clientId);
   const supabase = supabaseAdmin();
   const { data: statuses, error: fetchError } = await supabase.from("lead_statuses").select("*").eq("client_id", clientId);
   if (fetchError) throw new Error(fetchError.message);
@@ -47,21 +51,23 @@ export async function deleteLeadStatus(statusId: string, clientId: string) {
     const { error: promoteError } = await supabase.from("lead_statuses").update({ is_default: true }).eq("id", plan.newDefaultStatusId);
     if (promoteError) throw new Error(promoteError.message);
   }
-  const { error } = await supabase.from("lead_statuses").delete().eq("id", statusId);
+  const { error } = await supabase.from("lead_statuses").delete().eq("id", statusId).eq("client_id", clientId);
   if (error) throw new Error(error.message);
   revalidateCrm(clientId);
 }
 
 export async function setDefaultLeadStatus(statusId: string, clientId: string) {
+  assertCrmAccess(clientId);
   const supabase = supabaseAdmin();
   const { error: clearError } = await supabase.from("lead_statuses").update({ is_default: false }).eq("client_id", clientId).eq("is_default", true);
   if (clearError) throw new Error(clearError.message);
-  const { error } = await supabase.from("lead_statuses").update({ is_default: true }).eq("id", statusId);
+  const { error } = await supabase.from("lead_statuses").update({ is_default: true }).eq("id", statusId).eq("client_id", clientId);
   if (error) throw new Error(error.message);
   revalidateCrm(clientId);
 }
 
 export async function reorderLeadStatus(statusId: string, clientId: string, direction: "up" | "down") {
+  assertCrmAccess(clientId);
   const supabase = supabaseAdmin();
   const { data: statuses } = await supabase
     .from("lead_statuses")

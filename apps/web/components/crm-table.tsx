@@ -82,6 +82,7 @@ export function CrmTable({
             <th className="p-2 font-normal">טלפון</th>
             <th className="p-2 font-normal">אימייל</th>
             <th className="p-2 font-normal">סטטוס</th>
+            <th className="p-2 font-normal">שווי עסקה</th>
             {sortedColumns.map((col) => (
               <th key={col.id} className="p-2 font-normal">
                 {col.name}
@@ -116,6 +117,13 @@ export function CrmTable({
                       </option>
                     ))}
                   </select>
+                </td>
+                <td className="p-1">
+                  <EditableCell
+                    value={String(lead.deal_value ?? "")}
+                    type="number"
+                    onSave={(v) => updateLeadField(lead.id, clientId, "deal_value", v)}
+                  />
                 </td>
                 {sortedColumns.map((col) => (
                   <td key={col.id} className="p-1">

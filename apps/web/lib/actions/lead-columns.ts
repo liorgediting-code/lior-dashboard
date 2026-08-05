@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import type { LeadColumnType } from "@dashboard-lior/shared";
+import { assertCrmAccess } from "@/lib/auth/assert-crm-access";
 
 function revalidateCrm(clientId: string) {
   revalidatePath(`/clients/${clientId}/crm`);
@@ -10,6 +11,7 @@ function revalidateCrm(clientId: string) {
 }
 
 export async function createLeadColumn(clientId: string, name: string, type: LeadColumnType) {
+  assertCrmAccess(clientId);
   const supabase = supabaseAdmin();
   const { data: existing } = await supabase
     .from("lead_columns")
@@ -25,20 +27,23 @@ export async function createLeadColumn(clientId: string, name: string, type: Lea
 }
 
 export async function renameLeadColumn(columnId: string, clientId: string, name: string) {
+  assertCrmAccess(clientId);
   const supabase = supabaseAdmin();
-  const { error } = await supabase.from("lead_columns").update({ name }).eq("id", columnId);
+  const { error } = await supabase.from("lead_columns").update({ name }).eq("id", columnId).eq("client_id", clientId);
   if (error) throw new Error(error.message);
   revalidateCrm(clientId);
 }
 
 export async function deleteLeadColumn(columnId: string, clientId: string) {
+  assertCrmAccess(clientId);
   const supabase = supabaseAdmin();
-  const { error } = await supabase.from("lead_columns").delete().eq("id", columnId);
+  const { error } = await supabase.from("lead_columns").delete().eq("id", columnId).eq("client_id", clientId);
   if (error) throw new Error(error.message);
   revalidateCrm(clientId);
 }
 
 export async function reorderLeadColumn(columnId: string, clientId: string, direction: "up" | "down") {
+  assertCrmAccess(clientId);
   const supabase = supabaseAdmin();
   const { data: columns } = await supabase
     .from("lead_columns")

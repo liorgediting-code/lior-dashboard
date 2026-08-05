@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import type { Lead, LeadStatusKind } from "@dashboard-lior/shared";
 import { computeStatusChangePatch } from "@/lib/crm/status-rules";
+import { assertCrmAccess } from "@/lib/auth/assert-crm-access";
 
 function revalidateCrm(clientId: string) {
   revalidatePath(`/clients/${clientId}/crm`);
@@ -18,6 +19,7 @@ export async function createLead(input: {
   source_ad_id?: string | null;
   status_id?: string | null;
 }) {
+  assertCrmAccess(input.client_id);
   const supabase = supabaseAdmin();
 
   let statusId = input.status_id ?? null;
@@ -60,6 +62,7 @@ export async function createLeadFromForm(clientId: string, formData: FormData) {
 }
 
 export async function updateLeadField(leadId: string, clientId: string, field: string, value: string) {
+  assertCrmAccess(clientId);
   const supabase = supabaseAdmin();
 
   if (field.startsWith("custom:")) {
@@ -73,10 +76,25 @@ export async function updateLeadField(leadId: string, clientId: string, field: s
     const { error } = await supabase
       .from("leads")
       .update({ custom_fields: { ...currentFields, [columnId]: parsedValue } })
-      .eq("id", leadId);
+      .eq("id", leadId)
+      .eq("client_id", clientId);
     if (error) throw new Error(error.message);
   } else if (field === "name" || field === "phone" || field === "email") {
-    const { error } = await supabase.from("leads").update({ [field]: value || null } as Partial<Lead>).eq("id", leadId);
+    const { error } = await supabase
+      .from("leads")
+      .update({ [field]: value || null } as Partial<Lead>)
+      .eq("id", leadId)
+      .eq("client_id", clientId);
+    if (error) throw new Error(error.message);
+  } else if (field === "deal_value") {
+    const trimmed = value.trim();
+    const parsed = trimmed === "" ? null : Number(trimmed);
+    const dealValue = parsed != null && Number.isFinite(parsed) ? parsed : null;
+    const { error } = await supabase
+      .from("leads")
+      .update({ deal_value: dealValue })
+      .eq("id", leadId)
+      .eq("client_id", clientId);
     if (error) throw new Error(error.message);
   } else {
     throw new Error(`שדה לא ידוע: ${field}`);
@@ -86,19 +104,30 @@ export async function updateLeadField(leadId: string, clientId: string, field: s
 }
 
 export async function updateLeadStatus(leadId: string, clientId: string, statusId: string, dealValue?: number | null) {
+  assertCrmAccess(clientId);
   const supabase = supabaseAdmin();
-  const { data: status } = await supabase.from("lead_statuses").select("kind").eq("id", statusId).single();
+  const { data: status } = await supabase
+    .from("lead_statuses")
+    .select("kind")
+    .eq("id", statusId)
+    .eq("client_id", clientId)
+    .maybeSingle();
   if (!status) throw new Error("סטטוס לא נמצא");
 
   const patch = computeStatusChangePatch(status.kind as LeadStatusKind, dealValue);
-  const { error } = await supabase.from("leads").update({ status_id: statusId, ...patch }).eq("id", leadId);
+  const { error } = await supabase
+    .from("leads")
+    .update({ status_id: statusId, ...patch })
+    .eq("id", leadId)
+    .eq("client_id", clientId);
   if (error) throw new Error(error.message);
   revalidateCrm(clientId);
 }
 
 export async function deleteLead(leadId: string, clientId: string) {
+  assertCrmAccess(clientId);
   const supabase = supabaseAdmin();
-  const { error } = await supabase.from("leads").delete().eq("id", leadId);
+  const { error } = await supabase.from("leads").delete().eq("id", leadId).eq("client_id", clientId);
   if (error) throw new Error(error.message);
   revalidateCrm(clientId);
 }
