@@ -33,6 +33,8 @@ import type {
   AppSettings,
   DailyTask,
   DailyTaskCompletion,
+  ClientPayment,
+  Goal,
 } from "./domain";
 
 // supabase-js's GenericTable/GenericView require a `Relationships` array
@@ -114,6 +116,8 @@ export type Database = {
           },
         ]
       >;
+      client_payments: Table<ClientPayment, ClientFk<"client_payments">>;
+      goals: Table<Goal>;
     };
     Views: {
       sop_bottlenecks: { Row: SopBottleneck; Relationships: [] };

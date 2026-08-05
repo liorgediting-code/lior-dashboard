@@ -55,7 +55,7 @@ export default async function DashboardHomePage() {
           <p className="text-sm text-slate-500">ROI ממוצע (30 יום)</p>
           <p className="text-2xl font-bold">{avgRoi != null ? `${avgRoi.toFixed(1)}x` : "—"}</p>
         </div>
-        <Link href="/missions/business" className="card hover:border-slate-400">
+        <Link href="/missions/daily" className="card hover:border-slate-400">
           <p className="text-sm text-slate-500">עקביות יומית — משימות לעסק</p>
           <p className="text-2xl font-bold">{dailyCompletionPct != null ? `${dailyCompletionPct}%` : "—"}</p>
         </Link>

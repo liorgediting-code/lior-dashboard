@@ -4,6 +4,7 @@ const links = [
   { href: "/", label: "דשבורד" },
   { href: "/clients", label: "לקוחות" },
   { href: "/missions", label: "משימות" },
+  { href: "/goals", label: "מטרות" },
   { href: "/kill-queue", label: "תור הריגה" },
   { href: "/settings", label: "הגדרות" },
 ];

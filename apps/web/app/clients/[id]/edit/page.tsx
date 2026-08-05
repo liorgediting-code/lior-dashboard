@@ -1,17 +1,23 @@
 import { notFound } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { updateClientFromForm } from "@/lib/actions/clients";
-import type { Client } from "@dashboard-lior/shared";
+import { createClientPaymentFromForm, deleteClientPayment } from "@/lib/actions/client-payments";
+import type { Client, ClientPayment } from "@dashboard-lior/shared";
 import { DriveLinksEditor } from "@/components/drive-links-editor";
 import { RegeneratePasswordButton } from "@/components/regenerate-password-button";
+import { formatCurrency } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 export default async function EditClientPage({ params }: { params: { id: string } }) {
   const supabase = supabaseAdmin();
-  const { data: client } = await supabase.from("clients").select("*").eq("id", params.id).single();
+  const [{ data: client }, { data: payments }] = await Promise.all([
+    supabase.from("clients").select("*").eq("id", params.id).single(),
+    supabase.from("client_payments").select("*").eq("client_id", params.id).order("paid_on", { ascending: false }),
+  ]);
   if (!client) notFound();
   const c = client as Client;
+  const paymentRows = (payments ?? []) as ClientPayment[];
 
   const action = updateClientFromForm.bind(null, c.id);
 
@@ -155,6 +161,33 @@ export default async function EditClientPage({ params }: { params: { id: string 
           שמור
         </button>
       </form>
+
+      <div className="card mt-6 space-y-3">
+        <h2 className="font-semibold">תשלומים</h2>
+        <div className="space-y-1">
+          {paymentRows.map((p) => (
+            <div key={p.id} className="flex items-center justify-between text-sm">
+              <span>
+                {p.paid_on} — {formatCurrency(p.amount)} {p.note && <span className="text-slate-400">· {p.note}</span>}
+              </span>
+              <form action={deleteClientPayment.bind(null, p.id, c.id)}>
+                <button type="submit" className="text-xs text-slate-400 hover:text-red-600">
+                  הסר
+                </button>
+              </form>
+            </div>
+          ))}
+          {paymentRows.length === 0 && <p className="text-slate-500">אין עדיין תשלומים רשומים.</p>}
+        </div>
+        <form action={createClientPaymentFromForm.bind(null, c.id)} className="flex flex-wrap gap-2">
+          <input className="input w-28" name="amount" type="number" step="any" min="0" placeholder="סכום (₪)" required />
+          <input className="input w-40" name="paid_on" type="date" defaultValue={new Date().toISOString().slice(0, 10)} />
+          <input className="input flex-1" name="note" placeholder="הערה (אופציונלי)" />
+          <button type="submit" className="btn btn-secondary text-sm">
+            + הוסף תשלום
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

@@ -10,6 +10,7 @@ export default async function GlobalMissionsPage() {
   const { data: missions } = await supabase
     .from("missions")
     .select("*, clients(name)")
+    .not("client_id", "is", null)
     .order("due_date", { ascending: true, nullsFirst: false })
     .order("priority", { ascending: false });
 

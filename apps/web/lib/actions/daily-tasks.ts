@@ -8,7 +8,7 @@ function today(): string {
 }
 
 function revalidateDailyTasks() {
-  revalidatePath("/missions/business");
+  revalidatePath("/missions/daily");
   revalidatePath("/");
 }
 

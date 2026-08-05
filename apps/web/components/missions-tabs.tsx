@@ -1,9 +1,10 @@
 import Link from "next/link";
 
-export function MissionsTabs({ active }: { active: "clients" | "business" }) {
+export function MissionsTabs({ active }: { active: "clients" | "business" | "daily" }) {
   const tabs = [
     { key: "clients", label: "לקוחות", href: "/missions" },
     { key: "business", label: "משימות לעסק", href: "/missions/business" },
+    { key: "daily", label: "יומי", href: "/missions/daily" },
   ] as const;
 
   return (

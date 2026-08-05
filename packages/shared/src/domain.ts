@@ -62,7 +62,7 @@ export type BaselineSnapshot = {
 
 export type Mission = {
   id: string;
-  client_id: string;
+  client_id: string | null;
   title: string;
   description: string | null;
   due_date: string | null;
@@ -294,6 +294,24 @@ export type DailyTaskCompletion = {
   id: string;
   daily_task_id: string;
   completed_on: string;
+  created_at: string;
+};
+
+export type ClientPayment = {
+  id: string;
+  client_id: string;
+  amount: number;
+  paid_on: string;
+  note: string | null;
+  created_at: string;
+};
+
+export type GoalMetric = "client_count" | "revenue" | "leads_count";
+
+export type Goal = {
+  id: string;
+  metric: GoalMetric;
+  target_value: number;
   created_at: string;
 };
 
