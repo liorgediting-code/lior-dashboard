@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { hashPassword, verifyPassword, generateRandomPassword } from "@/lib/auth/password";
 import { CLIENT_SESSION_COOKIE_NAME, SESSION_MAX_AGE_SECONDS, signClientSession } from "@/lib/auth/client-session";
+import { assertCrmAccess } from "@/lib/auth/assert-crm-access";
 
 // Syntactically valid (but never-matching) salt:hash pair used to keep
 // verifyPassword's scrypt cost constant when a client has no real hash yet —
@@ -24,7 +25,9 @@ export async function loginClientAction(clientId: string, formData: FormData) {
     redirect(`/client/${clientId}/login?error=1`);
   }
 
-  cookies().set(CLIENT_SESSION_COOKIE_NAME, signClientSession(clientId), {
+  // Bind the session to the current password hash so rotating the password
+  // invalidates every cookie issued under the old one.
+  cookies().set(CLIENT_SESSION_COOKIE_NAME, signClientSession(clientId, hash.slice(0, 16)), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -40,6 +43,7 @@ export async function logoutClientAction(clientId: string) {
 }
 
 export async function regenerateClientPasswordAction(clientId: string): Promise<string> {
+  assertCrmAccess(clientId);
   const supabase = supabaseAdmin();
   const newPassword = generateRandomPassword();
   const hash = await hashPassword(newPassword);

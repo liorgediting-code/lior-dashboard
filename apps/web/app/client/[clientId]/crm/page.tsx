@@ -9,7 +9,7 @@ import type { Lead, LeadStatus, LeadColumn } from "@dashboard-lior/shared";
 export const dynamic = "force-dynamic";
 
 export default async function ClientPortalCrmPage({ params }: { params: { clientId: string } }) {
-  requireClientSession(params.clientId);
+  await requireClientSession(params.clientId);
 
   const supabase = supabaseAdmin();
   const [{ data: client }, { data: leads }, { data: statuses }, { data: columns }] = await Promise.all([

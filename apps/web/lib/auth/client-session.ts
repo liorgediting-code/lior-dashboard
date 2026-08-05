@@ -9,22 +9,31 @@ function getSecret(): string {
   return secret;
 }
 
+/**
+ * `passwordHashPrefix` binds the session to the password that created it —
+ * `requireClientSession` compares it against the client's *current*
+ * `crm_password_hash`, so rotating or changing the password immediately
+ * invalidates every cookie issued under the old one.
+ */
 export function signClientSession(
   clientId: string,
+  passwordHashPrefix: string,
   expiresAt: Date = new Date(Date.now() + SESSION_MAX_AGE_SECONDS * 1000)
 ): string {
-  const payload = `${clientId}.${expiresAt.getTime()}`;
+  const payload = `${clientId}.${passwordHashPrefix}.${expiresAt.getTime()}`;
   const signature = createHmac("sha256", getSecret()).update(payload).digest("hex");
   return `${payload}.${signature}`;
 }
 
-export function verifyClientSession(cookieValue: string | undefined): { clientId: string } | null {
+export function verifyClientSession(
+  cookieValue: string | undefined
+): { clientId: string; passwordHashPrefix: string } | null {
   if (!cookieValue) return null;
   const parts = cookieValue.split(".");
-  if (parts.length !== 3) return null;
+  if (parts.length !== 4) return null;
 
-  const [clientId, expiresAtStr, signature] = parts;
-  const payload = `${clientId}.${expiresAtStr}`;
+  const [clientId, passwordHashPrefix, expiresAtStr, signature] = parts;
+  const payload = `${clientId}.${passwordHashPrefix}.${expiresAtStr}`;
 
   let expectedSignature: string;
   try {
@@ -40,5 +49,5 @@ export function verifyClientSession(cookieValue: string | undefined): { clientId
   const expiresAt = Number(expiresAtStr);
   if (!Number.isFinite(expiresAt) || Date.now() > expiresAt) return null;
 
-  return { clientId };
+  return { clientId, passwordHashPrefix };
 }
