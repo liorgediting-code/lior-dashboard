@@ -40,6 +40,7 @@ export type Client = {
   max_cpl: number | null;
   meta_ad_account_id: string | null;
   meta_access_token: string | null;
+  webhook_secret: string | null;
   created_at: string;
 };
 
@@ -149,6 +150,7 @@ export type Lead = {
   source_ad_id: string | null;
   status_id: string;
   custom_fields: Record<string, string | number>;
+  meta_leadgen_id: string | null;
   created_at: string;
   closed_at: string | null;
   deal_value: number | null;

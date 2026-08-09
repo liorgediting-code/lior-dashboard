@@ -18,6 +18,8 @@ export async function createLead(input: {
   email?: string | null;
   source_ad_id?: string | null;
   status_id?: string | null;
+  custom_fields?: Record<string, string | number>;
+  meta_leadgen_id?: string | null;
 }) {
   assertCrmAccess(input.client_id);
   const supabase = supabaseAdmin();
@@ -43,6 +45,8 @@ export async function createLead(input: {
       email: input.email ?? null,
       source_ad_id: input.source_ad_id ?? null,
       status_id: statusId,
+      custom_fields: input.custom_fields ?? {},
+      meta_leadgen_id: input.meta_leadgen_id ?? null,
     })
     .select()
     .single();

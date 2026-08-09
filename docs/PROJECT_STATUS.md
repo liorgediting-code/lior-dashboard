@@ -72,11 +72,23 @@ not a throwaway sandbox.**
      third-party auth library. Spec:
      `docs/superpowers/specs/2026-08-04-client-crm-portal-design.md`, plan:
      `docs/superpowers/plans/2026-08-04-client-crm-portal.md`.
-   - ⬜ **2b — Webhook/automation intake** — NOT started. Finish the
-     Meta-leads webhook's unresolved ad→client resolution TODO
-     (`apps/web/app/api/webhooks/meta-leads/route.ts`), make lead intake
-     work generically for external automation tools (Make/Zapier/n8n)
-     hitting a client-specific webhook URL.
+   - ✅ **2b — Webhook/automation intake** — done 2026-08-09.
+     `apps/web/app/api/webhooks/meta-leads/route.ts` now resolves a Meta
+     `ad_id` → `ads.meta_id` → `adsets` → `campaigns` → `client_id` (only
+     works once that ad has been synced via `lib/meta/sync.ts` — an
+     unsynced `ad_id` is logged and skipped, not fatal). `leads.meta_leadgen_id`
+     (new column, unique when non-null) makes retried Meta deliveries a
+     no-op instead of a duplicate lead. Generic intake for external tools
+     (Make/Zapier/n8n/any form) lives at
+     `apps/web/app/api/webhooks/leads/[clientId]/route.ts` — each client
+     gets their own URL + secret (`clients.webhook_secret`, new column),
+     shown/regenerated on their edit page next to the portal password UI.
+     POST body maps `name`/`full_name`, `phone`/`phone_number`, `email` to
+     lead columns; every other key lands in `leads.custom_fields`.
+     Live-verified: real curl POSTs to both webhooks created leads visible
+     in the CRM, wrong-secret request got a 401, and a duplicate
+     `leadgen_id` delivery didn't create a second lead. Migration:
+     `supabase/migrations/20260809090000_phase12_lead_intake_webhooks.sql`.
    - ⬜ **2c — Weekly campaign questionnaire** — NOT started. Template
      (global + per-client override), client fills it in the portal,
      answers viewable in the dashboard and AI-analyzable, exposed as a new

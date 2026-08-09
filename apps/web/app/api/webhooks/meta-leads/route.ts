@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
+import { createLead } from "@/lib/actions/leads";
 
 /**
  * Real Meta Lead Ads webhook shape (GET verify handshake + POST payload
- * per Meta's webhook spec). Unverifiable end-to-end without a real Meta
- * App + Lead Ads form pointed at this URL.
+ * per Meta's webhook spec).
  */
 export async function GET(req: NextRequest) {
   const mode = req.nextUrl.searchParams.get("hub.mode");
@@ -23,19 +24,59 @@ interface MetaWebhookPayload {
   entry: Array<{ changes: MetaLeadgenChange[] }>;
 }
 
+// Resolves a Meta ad_id (as it appears in the webhook payload) to the
+// client that owns it, by walking ads -> adsets -> campaigns, all of
+// which are keyed by Meta's own ids once synced via lib/meta/sync.ts.
+// Returns null if the ad hasn't been synced yet (nothing to resolve to).
+async function resolveClientIdFromAdId(adId: string): Promise<{ clientId: string; adRowId: string } | null> {
+  const supabase = supabaseAdmin();
+  const { data: ad } = await supabase.from("ads").select("id, adset_id").eq("meta_id", adId).maybeSingle();
+  if (!ad) return null;
+
+  const { data: adset } = await supabase.from("adsets").select("campaign_id").eq("id", ad.adset_id as string).maybeSingle();
+  if (!adset) return null;
+
+  const { data: campaign } = await supabase.from("campaigns").select("client_id").eq("id", adset.campaign_id as string).maybeSingle();
+  if (!campaign) return null;
+
+  return { clientId: campaign.client_id as string, adRowId: ad.id as string };
+}
+
 export async function POST(req: NextRequest) {
   const payload = (await req.json()) as MetaWebhookPayload;
 
-  // NOTE: client_id resolution from ad_id -> ads.id -> adsets -> campaigns
-  // -> client_id is intentionally left as a TODO here: it needs a real
-  // ad_id from Meta to look up, which only exists once campaigns are
-  // synced from a live ad account (phase 2's built-but-unverifiable bucket).
   for (const entry of payload.entry ?? []) {
     for (const change of entry.changes ?? []) {
+      const { leadgen_id: leadgenId, ad_id: adId } = change.value;
       const fields = change.value.field_data ?? [];
       const name = fields.find((f) => f.name === "full_name")?.values?.[0] ?? null;
       const phone = fields.find((f) => f.name === "phone_number")?.values?.[0] ?? null;
-      console.info("[webhook:meta-leads] received lead (client resolution TODO)", { name, phone, adId: change.value.ad_id });
+      const email = fields.find((f) => f.name === "email")?.values?.[0] ?? null;
+
+      if (!adId) {
+        console.info("[webhook:meta-leads] no ad_id on payload, skipping", { leadgenId });
+        continue;
+      }
+      const resolved = await resolveClientIdFromAdId(adId);
+      if (!resolved) {
+        console.info("[webhook:meta-leads] ad_id not synced to a client yet, skipping", { adId, leadgenId });
+        continue;
+      }
+
+      try {
+        await createLead({
+          client_id: resolved.clientId,
+          name,
+          phone,
+          email,
+          source_ad_id: resolved.adRowId,
+          meta_leadgen_id: leadgenId,
+        });
+      } catch (err) {
+        // Meta retries webhook deliveries; the unique index on
+        // meta_leadgen_id makes a duplicate delivery a harmless no-op here.
+        console.error("[webhook:meta-leads] failed to create lead", { adId, leadgenId, err });
+      }
     }
   }
 
