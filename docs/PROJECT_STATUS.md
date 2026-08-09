@@ -134,6 +134,20 @@ not a throwaway sandbox.**
        client's automation; now scoped by both plus `assertCrmAccess`,
        matching the pattern every other client-reachable mutation in
        `lib/actions/leads.ts` already followed.
+     - **Added 2026-08-09 (same day, follow-up ask):** an "כניסה כלקוח 🔑"
+       button next to the create/refresh-CRM action
+       (`enterAsClientAction` in `lib/actions/client-auth.ts`) that mints a
+       portal session cookie the same way a real login does — bound to
+       whatever `crm_password_hash` is current — without ever needing to
+       know the client's password. Live-verified it keeps working even
+       after the client changes their own password from inside the
+       portal. This replaced the user's original ask ("show me his
+       password on my dashboard"): that would have required switching
+       password storage from one-way hashing to reversible encryption
+       (real risk — a DB/secret leak would expose every client's real
+       password). The impersonation button gets the same outcome ("easily
+       enter") with no security downgrade, and the user agreed to this
+       over the password-display option when asked.
    - ✅ **2b — Webhook/automation intake** — done 2026-08-09.
      `apps/web/app/api/webhooks/meta-leads/route.ts` now resolves a Meta
      `ad_id` → `ads.meta_id` → `adsets` → `campaigns` → `client_id` (only

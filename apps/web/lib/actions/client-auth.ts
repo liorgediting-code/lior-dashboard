@@ -37,6 +37,29 @@ export async function loginClientAction(clientId: string, formData: FormData) {
   redirect(`/client/${clientId}/crm`);
 }
 
+/**
+ * Lets you (the agency) drop straight into a client's portal from their
+ * edit page, without ever knowing their password. Mints a session the
+ * same way loginClientAction does after a successful password check —
+ * bound to whatever crm_password_hash is current right now, so it keeps
+ * working even after the client has changed their own password.
+ */
+export async function enterAsClientAction(clientId: string) {
+  const supabase = supabaseAdmin();
+  const { data: client } = await supabase.from("clients").select("crm_password_hash").eq("id", clientId).maybeSingle();
+  const hash = client?.crm_password_hash as string | null;
+  if (!hash) throw new Error("ללקוח הזה עדיין אין CRM פעיל");
+
+  cookies().set(CLIENT_SESSION_COOKIE_NAME, signClientSession(clientId, hash.slice(0, 16)), {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: SESSION_MAX_AGE_SECONDS,
+    path: "/",
+  });
+  redirect(`/client/${clientId}/crm`);
+}
+
 export async function logoutClientAction(clientId: string) {
   cookies().delete(CLIENT_SESSION_COOKIE_NAME);
   redirect(`/client/${clientId}/login`);

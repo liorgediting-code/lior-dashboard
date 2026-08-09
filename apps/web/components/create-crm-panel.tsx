@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { regenerateClientPasswordAction } from "@/lib/actions/client-auth";
+import { regenerateClientPasswordAction, enterAsClientAction } from "@/lib/actions/client-auth";
 import { regenerateWebhookSecretAction } from "@/lib/actions/client-webhook";
 
 function buildAutomationPrompt(clientName: string, webhookUrl: string) {
@@ -74,9 +74,16 @@ export function CreateCrmPanel({
           ? "ל־CRM הזה כבר יש סיסמה וכתובת webhook פעילות. לחיצה כאן יוצרת חדשות ומבטלת את הישנות."
           : "לחיצה אחת יוצרת גישה לפורטל הלקוח וכתובת webhook להכנסת לידים אוטומטית — הכל יחד."}
       </p>
-      <button type="button" className="btn btn-primary" disabled={pending} onClick={handleClick}>
-        {pending ? "יוצר..." : hasPassword || hasWebhook ? "רענן CRM ללקוח (סיסמה + webhook חדשים)" : "צור CRM ללקוח"}
-      </button>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className="btn btn-primary" disabled={pending} onClick={handleClick}>
+          {pending ? "יוצר..." : hasPassword || hasWebhook ? "רענן CRM ללקוח (סיסמה + webhook חדשים)" : "צור CRM ללקוח"}
+        </button>
+        {hasPassword && (
+          <button type="button" className="btn btn-secondary" onClick={() => enterAsClientAction(clientId)}>
+            כניסה כלקוח 🔑
+          </button>
+        )}
+      </div>
 
       {result && webhookUrl && (
         <div className="space-y-4 rounded-lg bg-amber-50 p-3 text-sm">
