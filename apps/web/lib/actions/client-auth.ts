@@ -71,5 +71,16 @@ export async function changeClientPasswordAction(clientId: string, formData: For
   const newHash = await hashPassword(newPassword);
   const { error } = await supabase.from("clients").update({ crm_password_hash: newHash }).eq("id", clientId);
   if (error) throw new Error(error.message);
+
+  // Sessions are bound to the hash they were issued under (see
+  // loginClientAction), so without re-signing here the client would be
+  // silently logged out by their own password change.
+  cookies().set(CLIENT_SESSION_COOKIE_NAME, signClientSession(clientId, newHash.slice(0, 16)), {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: SESSION_MAX_AGE_SECONDS,
+    path: "/",
+  });
   redirect(`/client/${clientId}/crm?password_success=1`);
 }

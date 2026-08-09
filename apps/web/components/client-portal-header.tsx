@@ -3,8 +3,23 @@
 import { useState } from "react";
 import { logoutClientAction, changeClientPasswordAction } from "@/lib/actions/client-auth";
 
-export function ClientPortalHeader({ clientId, clientName }: { clientId: string; clientName: string }) {
-  const [showPasswordForm, setShowPasswordForm] = useState(false);
+const PASSWORD_ERROR_MESSAGES: Record<string, string> = {
+  wrong_password: "הסיסמה הנוכחית שהזנת שגויה.",
+  too_short: "סיסמה חדשה חייבת להיות באורך 8 תווים לפחות.",
+};
+
+export function ClientPortalHeader({
+  clientId,
+  clientName,
+  passwordSuccess,
+  passwordError,
+}: {
+  clientId: string;
+  clientName: string;
+  passwordSuccess?: boolean;
+  passwordError?: string;
+}) {
+  const [showPasswordForm, setShowPasswordForm] = useState(Boolean(passwordError));
 
   return (
     <div className="mb-6">
@@ -21,6 +36,8 @@ export function ClientPortalHeader({ clientId, clientName }: { clientId: string;
           </form>
         </div>
       </div>
+      {passwordSuccess && <p className="mt-2 text-sm text-green-700">הסיסמה עודכנה בהצלחה.</p>}
+      {passwordError && <p className="mt-2 text-sm text-red-600">{PASSWORD_ERROR_MESSAGES[passwordError] ?? "אירעה שגיאה."}</p>}
       {showPasswordForm && (
         <form action={changeClientPasswordAction.bind(null, clientId)} className="card mt-3 max-w-sm space-y-2">
           <p className="text-xs text-amber-700">

@@ -72,6 +72,38 @@ not a throwaway sandbox.**
      third-party auth library. Spec:
      `docs/superpowers/specs/2026-08-04-client-crm-portal-design.md`, plan:
      `docs/superpowers/plans/2026-08-04-client-crm-portal.md`.
+     - **Reworked 2026-08-09** after the user pointed out the portal shared
+       the internal admin's layout/nav — a client logging into their portal
+       could type `/clients` in the address bar and see every other
+       client's data. Fixed by moving ALL internal admin pages (dashboard,
+       `/clients`, `/missions`, `/goals`, `/kill-queue`, `/settings`) into a
+       Next.js route group `app/(admin)/` with its own `layout.tsx` that
+       renders `<Nav/>`; the root `app/layout.tsx` now has no nav at all.
+       `/client/[clientId]/*` (the portal) and `/approve/[token]` (magic
+       link) sit outside that group, so they never render the admin nav or
+       link into it. **Note:** this only hides/removes navigation paths —
+       the admin routes still have no login of their own (open-by-design,
+       see `assert-crm-access.ts`), so anyone who already knows/guesses an
+       admin URL can still load it directly. The user was asked and
+       explicitly said skip real admin auth for now (`No, just separate
+       the layouts for now`) since this only runs on their own machine
+       today — revisit before ever deploying this somewhere reachable by a
+       client.
+     - Portal also got its own visual identity (indigo top bar "הפורטל
+       האישי שלך · LiorEdits", `app/client/[clientId]/layout.tsx`), a
+       `CrmDashboardStats` component (total/open/new-this-week/won counts
+       + an overdue-follow-ups banner, shown on both the portal and the
+       internal `/clients/[id]/crm` view since they share data), and a new
+       `leads.follow_up_at` date column editable inline in `CrmTable`
+       (overdue rows on still-open leads highlight red). Migration:
+       `supabase/migrations/20260809100000_phase13_lead_followups.sql`.
+     - Fixed a real bug while in this code: `changeClientPasswordAction`
+       (`apps/web/lib/actions/client-auth.ts`) updated the password hash
+       but never re-signed the session cookie (which is bound to the hash
+       at login time), so a client changing their own password got
+       silently logged out. Now re-signs the cookie on success, and
+       `ClientPortalHeader` shows a real success/error message instead of
+       swallowing the `password_success`/`password_error` redirect params.
    - ✅ **2b — Webhook/automation intake** — done 2026-08-09.
      `apps/web/app/api/webhooks/meta-leads/route.ts` now resolves a Meta
      `ad_id` → `ads.meta_id` → `adsets` → `campaigns` → `client_id` (only

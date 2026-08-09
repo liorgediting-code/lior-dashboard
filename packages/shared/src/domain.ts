@@ -151,6 +151,7 @@ export type Lead = {
   status_id: string;
   custom_fields: Record<string, string | number>;
   meta_leadgen_id: string | null;
+  follow_up_at: string | null;
   created_at: string;
   closed_at: string | null;
   deal_value: number | null;

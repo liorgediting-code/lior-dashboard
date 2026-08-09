@@ -17,7 +17,7 @@ function EditableCell({
 }: {
   value: string;
   onSave: (value: string) => void;
-  type?: "text" | "number";
+  type?: "text" | "number" | "date";
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -72,6 +72,7 @@ export function CrmTable({
 }) {
   const sortedStatuses = [...statuses].sort((a, b) => a.sort_order - b.sort_order);
   const sortedColumns = [...columns].sort((a, b) => a.sort_order - b.sort_order);
+  const todayIso = new Date().toISOString().slice(0, 10);
 
   return (
     <div className="overflow-x-auto">
@@ -83,6 +84,7 @@ export function CrmTable({
             <th className="p-2 font-normal">אימייל</th>
             <th className="p-2 font-normal">סטטוס</th>
             <th className="p-2 font-normal">שווי עסקה</th>
+            <th className="p-2 font-normal">מעקב הבא</th>
             {sortedColumns.map((col) => (
               <th key={col.id} className="p-2 font-normal">
                 {col.name}
@@ -94,8 +96,9 @@ export function CrmTable({
         <tbody className="divide-y divide-slate-100">
           {leads.map((lead) => {
             const status = sortedStatuses.find((s) => s.id === lead.status_id);
+            const isOverdue = status?.kind === "open" && !!lead.follow_up_at && lead.follow_up_at < todayIso;
             return (
-              <tr key={lead.id}>
+              <tr key={lead.id} className={isOverdue ? "bg-red-50" : undefined}>
                 <td className="p-1">
                   <EditableCell value={lead.name ?? ""} onSave={(v) => updateLeadField(lead.id, clientId, "name", v)} />
                 </td>
@@ -123,6 +126,13 @@ export function CrmTable({
                     value={String(lead.deal_value ?? "")}
                     type="number"
                     onSave={(v) => updateLeadField(lead.id, clientId, "deal_value", v)}
+                  />
+                </td>
+                <td className={`p-1 ${isOverdue ? "font-medium text-red-700" : ""}`}>
+                  <EditableCell
+                    value={lead.follow_up_at ?? ""}
+                    type="date"
+                    onSave={(v) => updateLeadField(lead.id, clientId, "follow_up_at", v)}
                   />
                 </td>
                 {sortedColumns.map((col) => (

@@ -100,6 +100,13 @@ export async function updateLeadField(leadId: string, clientId: string, field: s
       .eq("id", leadId)
       .eq("client_id", clientId);
     if (error) throw new Error(error.message);
+  } else if (field === "follow_up_at") {
+    const { error } = await supabase
+      .from("leads")
+      .update({ follow_up_at: value.trim() || null })
+      .eq("id", leadId)
+      .eq("client_id", clientId);
+    if (error) throw new Error(error.message);
   } else {
     throw new Error(`שדה לא ידוע: ${field}`);
   }

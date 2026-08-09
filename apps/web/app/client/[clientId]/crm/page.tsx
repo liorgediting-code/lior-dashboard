@@ -3,12 +3,19 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { requireClientSession } from "@/lib/auth/require-client-session";
 import { CrmTable } from "@/components/crm-table";
 import { CrmManagePanel } from "@/components/crm-manage-panel";
+import { CrmDashboardStats } from "@/components/crm-dashboard-stats";
 import { ClientPortalHeader } from "@/components/client-portal-header";
 import type { Lead, LeadStatus, LeadColumn } from "@dashboard-lior/shared";
 
 export const dynamic = "force-dynamic";
 
-export default async function ClientPortalCrmPage({ params }: { params: { clientId: string } }) {
+export default async function ClientPortalCrmPage({
+  params,
+  searchParams,
+}: {
+  params: { clientId: string };
+  searchParams: { password_success?: string; password_error?: string };
+}) {
   await requireClientSession(params.clientId);
 
   const supabase = supabaseAdmin();
@@ -21,8 +28,14 @@ export default async function ClientPortalCrmPage({ params }: { params: { client
   if (!client) notFound();
 
   return (
-    <div className="mx-auto max-w-5xl p-6">
-      <ClientPortalHeader clientId={params.clientId} clientName={client.name as string} />
+    <div>
+      <ClientPortalHeader
+        clientId={params.clientId}
+        clientName={client.name as string}
+        passwordSuccess={searchParams.password_success === "1"}
+        passwordError={searchParams.password_error}
+      />
+      <CrmDashboardStats leads={(leads ?? []) as Lead[]} statuses={(statuses ?? []) as LeadStatus[]} />
       <CrmManagePanel clientId={params.clientId} statuses={(statuses ?? []) as LeadStatus[]} columns={(columns ?? []) as LeadColumn[]} />
       <CrmTable
         clientId={params.clientId}
