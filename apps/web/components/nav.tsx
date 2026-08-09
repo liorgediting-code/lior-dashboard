@@ -3,6 +3,10 @@ import Link from "next/link";
 const links = [
   { href: "/", label: "דשבורד" },
   { href: "/clients", label: "לקוחות" },
+  { href: "/agency-crm", label: "CRM סוכנות" },
+  { href: "/funnels", label: "פאנלים" },
+  { href: "/notes", label: "יומן הערות" },
+  { href: "/questionnaires", label: "שאלונים" },
   { href: "/missions", label: "משימות" },
   { href: "/goals", label: "מטרות" },
   { href: "/kill-queue", label: "תור הריגה" },

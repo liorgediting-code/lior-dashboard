@@ -7,7 +7,7 @@ export function PortalTabs({
   showAutomations,
 }: {
   clientId: string;
-  active: "crm" | "notifications" | "automations";
+  active: "crm" | "notifications" | "questionnaire" | "automations";
   notificationsCount?: number;
   showAutomations: boolean;
 }) {
@@ -18,6 +18,7 @@ export function PortalTabs({
       label: notificationsCount > 0 ? `תזכורות (${notificationsCount})` : "תזכורות",
       href: `/client/${clientId}/notifications`,
     },
+    { key: "questionnaire" as const, label: "שאלון שבועי", href: `/client/${clientId}/questionnaire` },
     ...(showAutomations ? [{ key: "automations" as const, label: "אוטומציות WhatsApp", href: `/client/${clientId}/automations` }] : []),
   ];
 

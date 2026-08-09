@@ -7,6 +7,7 @@ import { getCampaignPerformance, getCampaignPerformanceSchema } from "./tools/ge
 import { getKillQueue } from "./tools/get-kill-queue.js";
 import { getMissions, getMissionsSchema } from "./tools/get-missions.js";
 import { getSopBottlenecks } from "./tools/get-sop-bottlenecks.js";
+import { getQuestionnaireResponses, getQuestionnaireResponsesSchema } from "./tools/get-questionnaire-responses.js";
 
 const server = new McpServer({
   name: "dashboard-lior",
@@ -50,6 +51,13 @@ server.tool(
   "Which clients are stuck at which SOP gate, and for how many days — same source as the dashboard's bottleneck widget.",
   {},
   async () => jsonResult(await getSopBottlenecks())
+);
+
+server.tool(
+  "get_questionnaire_responses",
+  "Weekly campaign questionnaire answers filled in by clients in their portal, with each answer paired to its question text. Optionally filtered to one client_id.",
+  getQuestionnaireResponsesSchema,
+  async (args) => jsonResult(await getQuestionnaireResponses(args))
 );
 
 async function main() {

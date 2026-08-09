@@ -36,6 +36,12 @@ import type {
   DailyTaskCompletion,
   ClientPayment,
   Goal,
+  AgencyLead,
+  Funnel,
+  FunnelCampaign,
+  Note,
+  QuestionnaireTemplate,
+  QuestionnaireResponse,
 } from "./domain";
 
 // supabase-js's GenericTable/GenericView require a `Relationships` array
@@ -120,6 +126,69 @@ export type Database = {
       >;
       client_payments: Table<ClientPayment, ClientFk<"client_payments">>;
       goals: Table<Goal>;
+      agency_leads: Table<AgencyLead>;
+      funnels: Table<Funnel, ClientFk<"funnels">>;
+      funnel_campaigns: Table<
+        FunnelCampaign,
+        [
+          {
+            foreignKeyName: "funnel_campaigns_funnel_id_fkey";
+            columns: ["funnel_id"];
+            isOneToOne: false;
+            referencedRelation: "funnels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "funnel_campaigns_campaign_id_fkey";
+            columns: ["campaign_id"];
+            isOneToOne: false;
+            referencedRelation: "campaigns";
+            referencedColumns: ["id"];
+          },
+        ]
+      >;
+      notes: Table<
+        Note,
+        [
+          {
+            foreignKeyName: "notes_client_id_fkey";
+            columns: ["client_id"];
+            isOneToOne: false;
+            referencedRelation: "clients";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "notes_funnel_id_fkey";
+            columns: ["funnel_id"];
+            isOneToOne: false;
+            referencedRelation: "funnels";
+            referencedColumns: ["id"];
+          },
+        ]
+      >;
+      questionnaire_templates: Table<
+        QuestionnaireTemplate,
+        ClientFk<"questionnaire_templates">
+      >;
+      questionnaire_responses: Table<
+        QuestionnaireResponse,
+        [
+          {
+            foreignKeyName: "questionnaire_responses_client_id_fkey";
+            columns: ["client_id"];
+            isOneToOne: false;
+            referencedRelation: "clients";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "questionnaire_responses_template_id_fkey";
+            columns: ["template_id"];
+            isOneToOne: false;
+            referencedRelation: "questionnaire_templates";
+            referencedColumns: ["id"];
+          },
+        ]
+      >;
     };
     Views: {
       sop_bottlenecks: { Row: SopBottleneck; Relationships: [] };

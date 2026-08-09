@@ -335,3 +335,89 @@ export type AppSettings = {
   meta_business_id: string | null;
   updated_at: string;
 };
+
+// --- Phase 15: the agency's own CRM (separate from per-client `leads`) ---
+
+export type AgencyLeadStatus = "new" | "contacted" | "meeting" | "proposal" | "won" | "lost";
+
+export type AgencyLead = {
+  id: string;
+  name: string;
+  business_name: string | null;
+  phone: string | null;
+  email: string | null;
+  source: string | null;
+  status: AgencyLeadStatus;
+  deal_value: number | null;
+  notes: string | null;
+  follow_up_at: string | null;
+  closed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+// --- Phase 16: funnels ---
+
+export type FunnelStatus = "active" | "paused" | "archived";
+
+export type Funnel = {
+  id: string;
+  name: string;
+  stage: FunnelStage | null;
+  status: FunnelStatus;
+  client_id: string | null;
+  description: string | null;
+  drive_links: DriveLink[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type FunnelCampaign = {
+  funnel_id: string;
+  campaign_id: string;
+  created_at: string;
+};
+
+// --- Phase 17: notes feed ---
+
+export type Note = {
+  id: string;
+  body: string;
+  note_date: string;
+  client_id: string | null;
+  funnel_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+// --- Phase 18 (roadmap 2c): weekly campaign questionnaire ---
+
+export type QuestionnaireQuestionType = "text" | "textarea" | "number" | "rating";
+
+export type QuestionnaireQuestion = {
+  id: string;
+  label: string;
+  type: QuestionnaireQuestionType;
+  required: boolean;
+};
+
+export type QuestionnaireTemplate = {
+  id: string;
+  /** null = the global default template every client falls back to. */
+  client_id: string | null;
+  name: string;
+  questions: QuestionnaireQuestion[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type QuestionnaireResponse = {
+  id: string;
+  client_id: string;
+  template_id: string | null;
+  /** Sunday of the week the answers describe (yyyy-mm-dd), Israeli work week. */
+  week_start: string;
+  answers: Record<string, string | number | null>;
+  submitted_at: string;
+  created_at: string;
+};

@@ -1,6 +1,6 @@
 # Project Status — dashboard-lior ("LiorEdits")
 
-Last updated: 2026-08-05. Written so a future session (or a fresh context
+Last updated: 2026-08-09. Written so a future session (or a fresh context
 after `/compact`) can pick up exactly where this one left off without
 re-deriving anything below.
 
@@ -34,6 +34,13 @@ not a throwaway sandbox.**
   directly to the remote Postgres — no Docker needed for this (Docker/
   Podman is NOT installed on this Mac, so `supabase start`/`db reset`
   for a local instance will not work).
+- **DO NOT use the `supabase` MCP server for this project.** It is
+  connected to a DIFFERENT Supabase project (its migration list is
+  `profiles`/`courses`/`lessons`/`exercises` — a course platform, not this
+  dashboard). That applies to every tool it exposes, including
+  `execute_sql`, `apply_migration` and `generate_typescript_types` — using
+  any of them here would read or write the wrong database. Use the
+  Supabase **CLI** against project ref `ykqmhkzletbaisqsjesv` only.
 - **Migrations must be written to survive existing data.** This project
   already has real rows (clients, leads, payments, daily tasks, etc.) —
   never write a migration assuming an empty table. Check row counts first
@@ -165,21 +172,70 @@ not a throwaway sandbox.**
      in the CRM, wrong-secret request got a 401, and a duplicate
      `leadgen_id` delivery didn't create a second lead. Migration:
      `supabase/migrations/20260809090000_phase12_lead_intake_webhooks.sql`.
-   - ⬜ **2c — Weekly campaign questionnaire** — NOT started. Template
-     (global + per-client override), client fills it in the portal,
-     answers viewable in the dashboard and AI-analyzable, exposed as a new
-     MCP tool (`apps/mcp-server`).
+   - ✅ **2c — Weekly campaign questionnaire** — code done 2026-08-09,
+     **migration not yet pushed** (see "Pending DB push" below). Admin
+     template editor at `/questionnaires`: one global template
+     (`questionnaire_templates.client_id is null`, seeded by the migration
+     with 6 Hebrew questions) plus an optional per-client override that
+     wins when present — two partial unique indexes enforce
+     "exactly one global, at most one per client". Question rows are
+     edited with `components/questionnaire-editor.tsx` (label / type
+     text|textarea|number|rating / required / reorder), serialized to JSON
+     in a hidden input the same way `DriveLinksEditor` works. Clients fill
+     it at `/client/[clientId]/questionnaire` (new portal tab), one row per
+     (client, week) upserted on `client_id,week_start` so re-submitting the
+     same week edits instead of stacking; past weeks are listed read-only
+     below the form. The admin page shows every client with a
+     מילא/לא מילא השבוע badge and all their past answers. MCP tool
+     `get_questionnaire_responses` (`apps/mcp-server/src/tools/
+     get-questionnaire-responses.ts`) returns answers already paired with
+     their question text — answers are stored keyed by question id, so raw
+     rows are unreadable without resolving the template.
+     - **`week_start` is the SUNDAY of the week**, matching the Israeli
+       Sun–Thu work week (the user chose this over the Monday the migration
+       was first drafted with, before any real responses existed). Computed
+       by `weekStartIso()` in `apps/web/lib/crm/questionnaire-week.ts`; the
+       phase-18 migration comment and `QuestionnaireResponse.week_start` in
+       `packages/shared` document the same rule. Every writer must agree —
+       the unique index is on `(client_id, week_start)`, so a disagreeing
+       writer would let one week produce two rows.
+     - Pure helpers live in `lib/crm/questionnaire-week.ts` (no
+       `server-only`, unit-tested in `lib/crm/__tests__/`); the Supabase
+       template lookup is in `lib/crm/questionnaire.ts`, which re-exports
+       them so callers have a single import.
 3. ✅ **Goals page** — done today. `/goals`: client count (current total),
    revenue and lead count (current calendar month), editable target per
    metric, live actual computed from `clients`/`client_payments`/`leads`.
    Client payment log (`תשלומים`) added to each client's edit page, feeds
    the revenue actual.
-4. ⬜ **Personal/agency CRM** — NOT started. Separate from the client CRM
-   built in 2a — for the agency's OWN leads/prospects.
-5. ⬜ **Funnels page** — NOT started. For the agency's own business:
-   campaign ↔ funnel, notes, drive/materials links.
-6. ⬜ **Notes feed** — NOT started. Dated, per client/funnel, left-side
-   panel.
+4. ✅ **Personal/agency CRM** — code done 2026-08-09, **migration not yet
+   pushed**. `/agency-crm`, backed by its own `agency_leads` table —
+   deliberately NOT the `leads` table, because those are per-CLIENT rows
+   with client-customizable statuses/columns, whereas the agency's own
+   pipeline is a fixed agency-wide status set (new → contacted → meeting →
+   proposal → won/lost) with no `client_id` and no portal exposure. Own
+   `AgencyCrmTable` component for the same reason — `CrmTable` is built
+   around the customizable-status model and doesn't fit. Inline-editable
+   cells, search + status filter + sort, four stat tiles (open leads, open
+   pipeline value, deals closed this month, revenue this month). `closed_at`
+   is stamped on entering won/lost and cleared on leaving them, so
+   "this month" recomputes live with no cron — same rule `leads` uses.
+5. ✅ **Funnels page** — code done 2026-08-09, **migration not yet pushed**.
+   `/funnels`: name, stage (TOFU/MOFU/BOFU), status, optional client,
+   description, drive/materials links (reuses `DriveLinksEditor` unchanged —
+   the migration kept `funnels.drive_links` in the exact jsonb shape
+   `clients.drive_links` uses), and a many-to-many campaign link via
+   `funnel_campaigns`. The join table exists so `campaigns` stays free of
+   app-owned columns that `lib/meta/sync.ts` would clobber on the next sync.
+   Campaign links are replaced wholesale (delete-then-insert) on save —
+   the join row carries no payload, so diffing would buy nothing.
+6. ✅ **Notes feed** — code done 2026-08-09, **migration not yet pushed**.
+   `/notes`: reverse-chronological feed grouped by date, with a
+   client/funnel filter panel (`lg:flex-row-reverse`, so it sits on the
+   left in this RTL layout). Filters are URL search params, so a filtered
+   view is linkable. `note_date` is backdatable and distinct from
+   `created_at`; it's rendered from UTC midnight on purpose so a bare
+   `date` column doesn't shift a day under the local timezone.
 7. ✅ **"Business tasks"** — done today, but note the split:
    - `/missions/business` = one-off tasks the user manually adds
      (title/due date/priority/status) — reuses the `missions` table with
@@ -195,6 +251,42 @@ not a throwaway sandbox.**
      built under the "business tasks" label/route) — now correctly split
      into separate tabs via `apps/web/components/missions-tabs.tsx`
      (`active: "clients" | "business" | "daily"`).
+
+## Pending DB push — READ BEFORE TOUCHING THESE FEATURES
+
+Phases 15–18 (roadmap 4, 5, 6, 2c) are **fully coded, typechecked, tested
+and building, but their migrations have NOT been applied to the live
+Supabase project yet**:
+
+```
+supabase/migrations/20260809120000_phase15_agency_crm.sql
+supabase/migrations/20260809130000_phase16_funnels.sql
+supabase/migrations/20260809140000_phase17_notes.sql
+supabase/migrations/20260809150000_phase18_questionnaires.sql
+```
+
+Until they're pushed, `/agency-crm`, `/funnels`, `/notes`,
+`/questionnaires` and the portal's שאלון שבועי tab will render but every
+query returns an error/empty — the tables don't exist yet.
+
+To apply (needs a personal access token; `SUPABASE_ACCESS_TOKEN` was NOT
+set in the session that wrote this, and `supabase db push` hangs with no
+output rather than printing an auth error, which is what "blocked" looks
+like here):
+
+```
+export SUPABASE_ACCESS_TOKEN=<personal access token>
+npx supabase db push --linked --include-all
+```
+
+Then verify in the browser per the rule below (typecheck/vitest passing is
+not sufficient). None of the four features has been live-verified yet.
+
+The 6 new tables are already registered in
+`packages/shared/src/database.types.ts` — that file's `Database["public"]
+["Tables"]` map is hand-written, and a table missing from it makes every
+query on it fail typecheck. Add new tables there whenever a migration adds
+one.
 
 ## New idea, not yet scoped or built
 
