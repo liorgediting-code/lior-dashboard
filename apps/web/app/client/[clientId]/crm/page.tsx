@@ -5,6 +5,10 @@ import { CrmTable } from "@/components/crm-table";
 import { CrmManagePanel } from "@/components/crm-manage-panel";
 import { CrmDashboardStats } from "@/components/crm-dashboard-stats";
 import { ClientPortalHeader } from "@/components/client-portal-header";
+import { PortalTabs } from "@/components/portal-tabs";
+import { resolveLeadSources } from "@/lib/crm/lead-sources";
+import { fetchActivitiesByLead } from "@/lib/crm/fetch-activities";
+import { getPortalTabsData } from "@/lib/crm/portal-tabs-data";
 import type { Lead, LeadStatus, LeadColumn } from "@dashboard-lior/shared";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +30,12 @@ export default async function ClientPortalCrmPage({
     supabase.from("lead_columns").select("*").eq("client_id", params.clientId),
   ]);
   if (!client) notFound();
+  const leadRows = (leads ?? []) as Lead[];
+  const [sourceLabels, activitiesByLeadId, tabsData] = await Promise.all([
+    resolveLeadSources(supabase, leadRows),
+    fetchActivitiesByLead(supabase, params.clientId),
+    getPortalTabsData(supabase, params.clientId),
+  ]);
 
   return (
     <div>
@@ -35,13 +45,16 @@ export default async function ClientPortalCrmPage({
         passwordSuccess={searchParams.password_success === "1"}
         passwordError={searchParams.password_error}
       />
-      <CrmDashboardStats leads={(leads ?? []) as Lead[]} statuses={(statuses ?? []) as LeadStatus[]} />
+      <PortalTabs clientId={params.clientId} active="crm" notificationsCount={tabsData.notificationsCount} showAutomations={tabsData.showAutomations} />
+      <CrmDashboardStats leads={leadRows} statuses={(statuses ?? []) as LeadStatus[]} />
       <CrmManagePanel clientId={params.clientId} statuses={(statuses ?? []) as LeadStatus[]} columns={(columns ?? []) as LeadColumn[]} />
       <CrmTable
         clientId={params.clientId}
-        leads={(leads ?? []) as Lead[]}
+        leads={leadRows}
         statuses={(statuses ?? []) as LeadStatus[]}
         columns={(columns ?? []) as LeadColumn[]}
+        sourceLabels={sourceLabels}
+        activitiesByLeadId={activitiesByLeadId}
       />
     </div>
   );

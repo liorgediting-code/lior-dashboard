@@ -4,6 +4,8 @@ import { ClientTabs } from "@/components/client-tabs";
 import { CrmTable } from "@/components/crm-table";
 import { CrmManagePanel } from "@/components/crm-manage-panel";
 import { CrmDashboardStats } from "@/components/crm-dashboard-stats";
+import { resolveLeadSources } from "@/lib/crm/lead-sources";
+import { fetchActivitiesByLead } from "@/lib/crm/fetch-activities";
 import type { Lead, LeadStatus, LeadColumn } from "@dashboard-lior/shared";
 
 export const dynamic = "force-dynamic";
@@ -17,18 +19,25 @@ export default async function ClientCrmPage({ params }: { params: { id: string }
     supabase.from("lead_columns").select("*").eq("client_id", params.id),
   ]);
   if (!client) notFound();
+  const leadRows = (leads ?? []) as Lead[];
+  const [sourceLabels, activitiesByLeadId] = await Promise.all([
+    resolveLeadSources(supabase, leadRows),
+    fetchActivitiesByLead(supabase, params.id),
+  ]);
 
   return (
     <div>
       <h1 className="mb-1 text-2xl font-bold">{client.name as string}</h1>
       <ClientTabs clientId={params.id} active="crm" />
-      <CrmDashboardStats leads={(leads ?? []) as Lead[]} statuses={(statuses ?? []) as LeadStatus[]} />
+      <CrmDashboardStats leads={leadRows} statuses={(statuses ?? []) as LeadStatus[]} />
       <CrmManagePanel clientId={params.id} statuses={(statuses ?? []) as LeadStatus[]} columns={(columns ?? []) as LeadColumn[]} />
       <CrmTable
         clientId={params.id}
-        leads={(leads ?? []) as Lead[]}
+        leads={leadRows}
         statuses={(statuses ?? []) as LeadStatus[]}
         columns={(columns ?? []) as LeadColumn[]}
+        sourceLabels={sourceLabels}
+        activitiesByLeadId={activitiesByLeadId}
       />
     </div>
   );

@@ -104,6 +104,36 @@ not a throwaway sandbox.**
        silently logged out. Now re-signs the cookie on success, and
        `ClientPortalHeader` shows a real success/error message instead of
        swallowing the `password_success`/`password_error` redirect params.
+     - **Extended 2026-08-09** with a big batch the user asked for in one
+       go: lead source attribution (`מקור` column in `CrmTable`, resolved
+       from `leads.source_ad_id` → `ads`/`adsets`/`campaigns` via
+       `lib/crm/lead-sources.ts` — leads without a source ad show "ידני";
+       full auto-attribution from the *generic* automation webhook is
+       still a TODO, only the Meta webhook sets `source_ad_id` today);
+       a unified "צור/רענן CRM ללקוח" action
+       (`components/create-crm-panel.tsx`) that generates the portal
+       password AND webhook secret together and shows both plus a
+       ready-to-paste Claude Code/Make.com automation prompt — replaces
+       the old two-separate-buttons flow; "עסקאות החודש" stat in
+       `CrmDashboardStats` (won leads with `closed_at` in the current
+       calendar month — recomputes every render so it rolls over on its
+       own, no cron needed); a `lead_activities` table (call/whatsapp/note,
+       timestamped) with a per-lead expandable panel in `CrmTable`
+       (migration `20260809110000_phase14_lead_activities.sql`); search +
+       status/source filter + sort controls in `CrmTable` (client-side);
+       and two new portal tabs via `components/portal-tabs.tsx` +
+       `app/client/[clientId]/layout.tsx`-adjacent pages: `/notifications`
+       (leads whose `follow_up_at` is due today or overdue, open-status
+       only, with an inline reschedule/mark-done control) and
+       `/automations` (WhatsApp automation preview + edit, reusing the
+       existing `StepsEditor` + `updateAutomation` action — only shown if
+       the client has at least one automation). While wiring
+       `updateAutomation` into the portal, fixed a latent cross-tenant bug:
+       it only scoped its update by automation `id`, not `client_id`, so a
+       crafted request with a spoofed client_id could have edited another
+       client's automation; now scoped by both plus `assertCrmAccess`,
+       matching the pattern every other client-reachable mutation in
+       `lib/actions/leads.ts` already followed.
    - ✅ **2b — Webhook/automation intake** — done 2026-08-09.
      `apps/web/app/api/webhooks/meta-leads/route.ts` now resolves a Meta
      `ad_id` → `ads.meta_id` → `adsets` → `campaigns` → `client_id` (only

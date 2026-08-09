@@ -157,6 +157,17 @@ export type Lead = {
   deal_value: number | null;
 };
 
+export type LeadActivityKind = "call" | "whatsapp" | "note";
+
+export type LeadActivity = {
+  id: string;
+  lead_id: string;
+  client_id: string;
+  kind: LeadActivityKind;
+  note: string;
+  created_at: string;
+};
+
 export type LeadStatusKind = "open" | "won" | "lost";
 
 export type LeadStatus = {

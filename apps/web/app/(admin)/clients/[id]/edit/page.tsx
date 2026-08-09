@@ -4,8 +4,7 @@ import { updateClientFromForm } from "@/lib/actions/clients";
 import { createClientPaymentFromForm, deleteClientPayment } from "@/lib/actions/client-payments";
 import type { Client, ClientPayment } from "@dashboard-lior/shared";
 import { DriveLinksEditor } from "@/components/drive-links-editor";
-import { RegeneratePasswordButton } from "@/components/regenerate-password-button";
-import { RegenerateWebhookSecretButton } from "@/components/regenerate-webhook-secret-button";
+import { CreateCrmPanel } from "@/components/create-crm-panel";
 import { formatCurrency } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -100,29 +99,19 @@ export default async function EditClientPage({ params }: { params: { id: string 
         </div>
 
         <div className="card space-y-3">
-          <h2 className="font-semibold">פורטל הלקוח</h2>
+          <h2 className="font-semibold">CRM ללקוח</h2>
           <p className="text-sm text-slate-500">
-            קישור לאזור הלקוח:{" "}
-            <code className="font-mono">{`${process.env.APP_BASE_URL ?? ""}/client/${c.id}/crm`}</code>
+            {c.crm_password_hash && c.webhook_secret
+              ? "ל-CRM הזה יש גישת פורטל וכתובת webhook פעילות."
+              : "עדיין לא נוצר CRM ללקוח הזה."}
           </p>
-          <p className="text-sm text-slate-500">
-            {c.crm_password_hash ? "מוגדרת סיסמה." : "טרם הוגדרה סיסמה — צור אחת כדי לאפשר כניסה."}
-          </p>
-          <RegeneratePasswordButton clientId={c.id} />
-        </div>
-
-        <div className="card space-y-3">
-          <h2 className="font-semibold">Webhook לכניסת לידים</h2>
-          <p className="text-sm text-slate-500">
-            כתובת ייעודית ללקוח הזה לחיבור כלי אוטומציה חיצוני (Make / Zapier / n8n / כל טופס אחר). שולחים בקשת POST עם
-            JSON — שדות <code className="font-mono text-xs">name</code>/<code className="font-mono text-xs">phone</code>/
-            <code className="font-mono text-xs">email</code> נכנסים לעמודות המתאימות, כל שדה אחר נשמר כשדה מותאם אישית על
-            הליד.
-          </p>
-          <p className="text-sm text-slate-500">
-            {c.webhook_secret ? "מוגדרת כתובת webhook." : "טרם הוגדרה כתובת — צור אחת כדי לאפשר כניסה."}
-          </p>
-          <RegenerateWebhookSecretButton clientId={c.id} appBaseUrl={process.env.APP_BASE_URL ?? ""} />
+          <CreateCrmPanel
+            clientId={c.id}
+            clientName={c.name}
+            appBaseUrl={process.env.APP_BASE_URL ?? ""}
+            hasPassword={Boolean(c.crm_password_hash)}
+            hasWebhook={Boolean(c.webhook_secret)}
+          />
         </div>
 
         <div className="card space-y-4">

@@ -4,8 +4,12 @@ export function CrmDashboardStats({ leads, statuses }: { leads: Lead[]; statuses
   const todayIso = new Date().toISOString().slice(0, 10);
   const weekAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
+  const monthStartIso = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
+
   const openStatusIds = new Set(statuses.filter((s) => s.kind === "open").map((s) => s.id));
-  const wonCount = leads.filter((l) => statuses.find((s) => s.id === l.status_id)?.kind === "won").length;
+  const wonStatusIds = new Set(statuses.filter((s) => s.kind === "won").map((s) => s.id));
+  const wonCount = leads.filter((l) => wonStatusIds.has(l.status_id)).length;
+  const dealsThisMonth = leads.filter((l) => wonStatusIds.has(l.status_id) && l.closed_at && l.closed_at.slice(0, 10) >= monthStartIso).length;
   const newThisWeek = leads.filter((l) => l.created_at.slice(0, 10) >= weekAgoIso).length;
   const overdueFollowUps = leads.filter((l) => openStatusIds.has(l.status_id) && l.follow_up_at && l.follow_up_at < todayIso).length;
   const openCount = leads.filter((l) => openStatusIds.has(l.status_id)).length;
@@ -14,12 +18,13 @@ export function CrmDashboardStats({ leads, statuses }: { leads: Lead[]; statuses
     { label: "סה״כ לידים", value: leads.length },
     { label: "פתוחים כרגע", value: openCount },
     { label: "חדשים השבוע", value: newThisWeek },
-    { label: "נסגרו בהצלחה", value: wonCount },
+    { label: "עסקאות החודש", value: dealsThisMonth },
+    { label: "נסגרו בהצלחה (סה״כ)", value: wonCount },
   ];
 
   return (
     <div className="mb-6 space-y-3">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {cards.map((c) => (
           <div key={c.label} className="card">
             <p className="text-xs text-slate-500">{c.label}</p>
