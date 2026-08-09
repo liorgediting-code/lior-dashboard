@@ -172,8 +172,8 @@ not a throwaway sandbox.**
      in the CRM, wrong-secret request got a 401, and a duplicate
      `leadgen_id` delivery didn't create a second lead. Migration:
      `supabase/migrations/20260809090000_phase12_lead_intake_webhooks.sql`.
-   - ✅ **2c — Weekly campaign questionnaire** — code done 2026-08-09,
-     **migration not yet pushed** (see "Pending DB push" below). Admin
+   - ✅ **2c — Weekly campaign questionnaire** — done 2026-08-09 (migration
+     applied and verified). Admin
      template editor at `/questionnaires`: one global template
      (`questionnaire_templates.client_id is null`, seeded by the migration
      with 6 Hebrew questions) plus an optional per-client override that
@@ -208,8 +208,8 @@ not a throwaway sandbox.**
    metric, live actual computed from `clients`/`client_payments`/`leads`.
    Client payment log (`תשלומים`) added to each client's edit page, feeds
    the revenue actual.
-4. ✅ **Personal/agency CRM** — code done 2026-08-09, **migration not yet
-   pushed**. `/agency-crm`, backed by its own `agency_leads` table —
+4. ✅ **Personal/agency CRM** — done 2026-08-09 (migration applied and
+   verified). `/agency-crm`, backed by its own `agency_leads` table —
    deliberately NOT the `leads` table, because those are per-CLIENT rows
    with client-customizable statuses/columns, whereas the agency's own
    pipeline is a fixed agency-wide status set (new → contacted → meeting →
@@ -220,7 +220,7 @@ not a throwaway sandbox.**
    pipeline value, deals closed this month, revenue this month). `closed_at`
    is stamped on entering won/lost and cleared on leaving them, so
    "this month" recomputes live with no cron — same rule `leads` uses.
-5. ✅ **Funnels page** — code done 2026-08-09, **migration not yet pushed**.
+5. ✅ **Funnels page** — done 2026-08-09 (migration applied and verified).
    `/funnels`: name, stage (TOFU/MOFU/BOFU), status, optional client,
    description, drive/materials links (reuses `DriveLinksEditor` unchanged —
    the migration kept `funnels.drive_links` in the exact jsonb shape
@@ -229,7 +229,7 @@ not a throwaway sandbox.**
    app-owned columns that `lib/meta/sync.ts` would clobber on the next sync.
    Campaign links are replaced wholesale (delete-then-insert) on save —
    the join row carries no payload, so diffing would buy nothing.
-6. ✅ **Notes feed** — code done 2026-08-09, **migration not yet pushed**.
+6. ✅ **Notes feed** — done 2026-08-09 (migration applied and verified).
    `/notes`: reverse-chronological feed grouped by date, with a
    client/funnel filter panel (`lg:flex-row-reverse`, so it sits on the
    left in this RTL layout). Filters are URL search params, so a filtered
@@ -252,37 +252,41 @@ not a throwaway sandbox.**
      into separate tabs via `apps/web/components/missions-tabs.tsx`
      (`active: "clients" | "business" | "daily"`).
 
-## Pending DB push — READ BEFORE TOUCHING THESE FEATURES
+## Phases 15–18: applied and verified 2026-08-09
 
-Phases 15–18 (roadmap 4, 5, 6, 2c) are **fully coded, typechecked, tested
-and building, but their migrations have NOT been applied to the live
-Supabase project yet**:
-
-```
-supabase/migrations/20260809120000_phase15_agency_crm.sql
-supabase/migrations/20260809130000_phase16_funnels.sql
-supabase/migrations/20260809140000_phase17_notes.sql
-supabase/migrations/20260809150000_phase18_questionnaires.sql
-```
-
-Until they're pushed, `/agency-crm`, `/funnels`, `/notes`,
-`/questionnaires` and the portal's שאלון שבועי tab will render but every
-query returns an error/empty — the tables don't exist yet.
-
-To apply (needs a personal access token; `SUPABASE_ACCESS_TOKEN` was NOT
-set in the session that wrote this, and `supabase db push` hangs with no
-output rather than printing an auth error, which is what "blocked" looks
-like here):
+All four migrations are **applied to the live project** and the features
+were verified against it:
 
 ```
-export SUPABASE_ACCESS_TOKEN=<personal access token>
-npx supabase db push --linked --include-all
+20260809120000_phase15_agency_crm       ✅ applied
+20260809130000_phase16_funnels          ✅ applied
+20260809140000_phase17_notes            ✅ applied
+20260809150000_phase18_questionnaires   ✅ applied (global template seeded)
 ```
 
-Then verify in the browser per the rule below (typecheck/vitest passing is
-not sufficient). None of the four features has been live-verified yet.
+Verified: all six tables exist; `/agency-crm`, `/funnels`, `/notes`,
+`/questionnaires` all return 200 with no render errors and the seeded
+Hebrew questions appear; nav links resolve; the portal's
+`/client/[id]/questionnaire` 307-redirects to the login page when there's
+no session (auth guard intact). The `questionnaire_responses` upsert was
+exercised directly against the live DB — two submissions for the same
+(client, week) collapse to one row with the later answers, confirming
+Postgres infers `questionnaire_responses_client_week_idx`. The test row
+was deleted; all four new tables are empty.
 
-The 6 new tables are already registered in
+Two CLI notes worth keeping:
+
+- The Supabase CLI needs `SUPABASE_ACCESS_TOKEN` (a **personal access
+  token** from https://supabase.com/dashboard/account/tokens — not the
+  anon/service-role keys in `.env.local`). Without it, `supabase db push`
+  and `migration list` **hang indefinitely with no output** instead of
+  printing an auth error. A silent hang IS the auth failure — don't
+  debug it as anything else.
+- `npm run dev` from a session where port 3000 is already taken silently
+  moves to 3001. Check the startup log before concluding a change "didn't
+  show up".
+
+The 6 new tables are registered in
 `packages/shared/src/database.types.ts` — that file's `Database["public"]
 ["Tables"]` map is hand-written, and a table missing from it makes every
 query on it fail typecheck. Add new tables there whenever a migration adds
