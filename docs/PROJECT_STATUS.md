@@ -292,45 +292,41 @@ The 6 new tables are registered in
 query on it fail typecheck. Add new tables there whenever a migration adds
 one.
 
-## Phase 19: built, NOT YET PUSHED TO THE DB ⚠️
+## Phase 19: applied and verified 2026-08-10
 
-Branch `phase19-client-workspace`. Everything typechecks, 103 tests pass
-and `npm run build` succeeds, but the migration is **not applied** —
-`supabase migration list --linked` now returns
-`401 Unauthorized` because the access token used on 2026-08-09 was
-rotated (correctly — it had been pasted in plaintext into a chat).
+`20260810120000_phase19_webhook_mapping_reports.sql` is **applied to the
+live project**, and phases 15–19 are all merged into `main` (the feature
+branches are deleted). `migration list` shows local == remote for all 18
+migrations.
 
-**Nothing in phase 19 will work until this runs:**
+Verified against the live DB, not just locally:
 
-```
-export SUPABASE_ACCESS_TOKEN=<fresh personal access token>
-npx supabase db push --linked
-```
+- `webhook_field_mappings` exists; `weekly_reports.period_kind` /
+  `period_end` exist.
+- The old `(client_id, week_start)` unique constraint really is gone —
+  proven behaviourally by inserting a weekly AND a monthly report sharing
+  one start date (the collision the old constraint would have blocked).
+  The replacement three-column index still rejects a true duplicate
+  (`23505`). Test rows deleted.
+- The webhook mapping was exercised end-to-end through the running dev
+  server against a real client: built-in fields still map with no config,
+  a mapped question lands under the **column id** (so it renders in the
+  CRM — the bug this feature fixes), an `ignore` mapping is dropped, and
+  an unmapped key survives under its raw name. All test data, the temp
+  column and the temp `webhook_secret` were removed afterwards.
+- `/clients/[id]`, `/funnels`, `/campaigns`, `/crm`, `/reports`, `/notes`,
+  `/questionnaires`, `/agency-crm` → 200 with no errors in the dev log;
+  portal `/client/[id]/reports` and `/questionnaire` → 307 to login
+  without a session.
 
-Pending: `20260810120000_phase19_webhook_mapping_reports.sql` — adds the
-`webhook_field_mappings` table and `weekly_reports.period_kind` /
-`period_end`, and replaces the old `(client_id, week_start)` unique
-constraint with `(client_id, week_start, period_kind)`.
+Gotcha worth keeping: **the phase-19 migration drops a constraint by
+name** inside a `do $$` guard. It matched here, but if `weekly_reports`
+is ever restored from a dump with renamed constraints, re-check with
+`select conname from pg_constraint where conrelid =
+'weekly_reports'::regclass;`.
 
-Until it's applied, `/clients/[id]/crm` and `/clients/[id]/reports` will
-error (they select columns/tables that don't exist yet). That's
-deliberate — no defensive shims that would hide schema drift.
-
-**Verify right after the push:**
-
-```sql
--- must NOT list weekly_reports_client_id_week_start_key
-select conname from pg_constraint where conrelid = 'weekly_reports'::regclass;
-```
-
-The migration drops that constraint inside a `do $$` block guarded on the
-name. If the constraint had been renamed by hand the guard silently
-no-ops, the old two-column unique survives, and the first monthly report
-whose month starts on a Sunday fails to insert.
-
-Then smoke: `/clients/[id]/funnels`, `/clients/[id]/crm`,
-`/clients/[id]/reports`, and the portal's `/client/[id]/reports`
-(the דוחות tab only appears once a report has been *sent*).
+The portal's דוחות tab only appears once a report has actually been
+*sent* (`sent_at` set) — an empty portal tab is not a bug.
 
 What phase 19 added, all against the same live schema conventions:
 
