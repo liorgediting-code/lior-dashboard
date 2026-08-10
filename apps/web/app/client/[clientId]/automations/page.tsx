@@ -23,12 +23,7 @@ export default async function ClientPortalAutomationsPage({ params }: { params: 
   return (
     <div>
       <h1 className="mb-4 text-2xl font-bold">{client.name as string}</h1>
-      <PortalTabs
-        clientId={params.clientId}
-        active="automations"
-        notificationsCount={tabsData.notificationsCount}
-        showAutomations={tabsData.showAutomations}
-      />
+      <PortalTabs clientId={params.clientId} active="automations" {...tabsData} />
       <div className="space-y-3">
         {automationRows.map((automation) => (
           <WhatsappAutomationEditor key={automation.id} automation={automation} clientId={params.clientId} />

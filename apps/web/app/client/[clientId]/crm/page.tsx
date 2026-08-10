@@ -45,7 +45,7 @@ export default async function ClientPortalCrmPage({
         passwordSuccess={searchParams.password_success === "1"}
         passwordError={searchParams.password_error}
       />
-      <PortalTabs clientId={params.clientId} active="crm" notificationsCount={tabsData.notificationsCount} showAutomations={tabsData.showAutomations} />
+      <PortalTabs clientId={params.clientId} active="crm" {...tabsData} />
       <CrmDashboardStats leads={leadRows} statuses={(statuses ?? []) as LeadStatus[]} />
       <CrmManagePanel clientId={params.clientId} statuses={(statuses ?? []) as LeadStatus[]} columns={(columns ?? []) as LeadColumn[]} />
       <CrmTable

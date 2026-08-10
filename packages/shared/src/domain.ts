@@ -189,15 +189,21 @@ export type LeadColumn = {
   sort_order: number;
 };
 
+export type ReportPeriodKind = "week" | "month";
+
 export type WeeklyReport = {
   id: string;
   client_id: string;
+  /** First day of the reported period — Sunday for a week, the 1st for a month. */
   week_start: string;
   lead_quality_score: number | null;
   leads_matched_audience: number | null;
   leads_closed_count: number | null;
   report_html: string | null;
   sent_at: string | null;
+  period_kind: ReportPeriodKind;
+  /** Last day of the period, inclusive. Null on rows written before phase 19. */
+  period_end: string | null;
 };
 
 export type SopGate = {
@@ -409,6 +415,24 @@ export type QuestionnaireTemplate = {
   questions: QuestionnaireQuestion[];
   created_at: string;
   updated_at: string;
+};
+
+// --- Phase 19: configurable webhook field mapping ---
+
+/**
+ * Where an incoming webhook key should land. Either a built-in lead field,
+ * the explicit "throw it away" marker, or a lead_columns.id (a custom CRM
+ * column) — see the phase-19 migration for why this isn't a foreign key.
+ */
+export type WebhookFieldTarget = "name" | "phone" | "email" | "ignore" | (string & {});
+
+export type WebhookFieldMapping = {
+  id: string;
+  client_id: string;
+  /** The key as it arrives in the webhook payload. Matched case-insensitively. */
+  source_key: string;
+  target: WebhookFieldTarget;
+  created_at: string;
 };
 
 export type QuestionnaireResponse = {

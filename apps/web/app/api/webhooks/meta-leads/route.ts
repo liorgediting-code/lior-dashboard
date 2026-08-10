@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { createLead } from "@/lib/actions/leads";
+import { loadFieldMapper } from "@/lib/crm/fetch-webhook-mapping";
 
 /**
  * Real Meta Lead Ads webhook shape (GET verify handshake + POST payload
@@ -49,9 +50,15 @@ export async function POST(req: NextRequest) {
     for (const change of entry.changes ?? []) {
       const { leadgen_id: leadgenId, ad_id: adId } = change.value;
       const fields = change.value.field_data ?? [];
-      const name = fields.find((f) => f.name === "full_name")?.values?.[0] ?? null;
-      const phone = fields.find((f) => f.name === "phone_number")?.values?.[0] ?? null;
-      const email = fields.find((f) => f.name === "email")?.values?.[0] ?? null;
+
+      // Every answer on the form, not just the three standard ones — the
+      // client's own lead-form questions used to be dropped here. Flattened
+      // to { question name: values } so the per-client mapping decides which
+      // CRM column each one lands in.
+      const payload: Record<string, unknown> = {};
+      for (const field of fields) {
+        payload[field.name] = field.values;
+      }
 
       if (!adId) {
         console.info("[webhook:meta-leads] no ad_id on payload, skipping", { leadgenId });
@@ -64,11 +71,14 @@ export async function POST(req: NextRequest) {
       }
 
       try {
+        const mapFields = await loadFieldMapper(resolved.clientId);
+        const mapped = mapFields(payload);
         await createLead({
           client_id: resolved.clientId,
-          name,
-          phone,
-          email,
+          name: mapped.name,
+          phone: mapped.phone,
+          email: mapped.email,
+          custom_fields: mapped.custom_fields,
           source_ad_id: resolved.adRowId,
           meta_leadgen_id: leadgenId,
         });

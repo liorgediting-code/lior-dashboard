@@ -9,3 +9,7 @@ supabase/.temp/
 *.tsbuildinfo
 .DS_Store
 .superpowers/
+
+# Local agent tooling artifacts
+.claude-flow/
+.claude/

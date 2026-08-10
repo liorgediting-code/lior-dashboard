@@ -292,6 +292,70 @@ The 6 new tables are registered in
 query on it fail typecheck. Add new tables there whenever a migration adds
 one.
 
+## Phase 19: built, NOT YET PUSHED TO THE DB ⚠️
+
+Branch `phase19-client-workspace`. Everything typechecks, 103 tests pass
+and `npm run build` succeeds, but the migration is **not applied** —
+`supabase migration list --linked` now returns
+`401 Unauthorized` because the access token used on 2026-08-09 was
+rotated (correctly — it had been pasted in plaintext into a chat).
+
+**Nothing in phase 19 will work until this runs:**
+
+```
+export SUPABASE_ACCESS_TOKEN=<fresh personal access token>
+npx supabase db push --linked
+```
+
+Pending: `20260810120000_phase19_webhook_mapping_reports.sql` — adds the
+`webhook_field_mappings` table and `weekly_reports.period_kind` /
+`period_end`, and replaces the old `(client_id, week_start)` unique
+constraint with `(client_id, week_start, period_kind)`.
+
+Until it's applied, `/clients/[id]/crm` and `/clients/[id]/reports` will
+error (they select columns/tables that don't exist yet). That's
+deliberate — no defensive shims that would hide schema drift.
+
+What phase 19 added, all against the same live schema conventions:
+
+- **Client funnels tab** (`/clients/[id]/funnels`) — the client's funnels,
+  each with a קמפיינים section showing per-campaign spend/leads/CPL/
+  clicks/impressions/CTR/CPC/CPM over a trailing 30 days.
+- **Shared metrics helper** (`lib/metrics/`): `campaign-stats.ts` is pure
+  and unit-tested; `fetch-stats.ts` does the campaigns→adsets→ads→
+  `ad_metrics_daily` walk that three pages used to duplicate. It **pages
+  through `ad_metrics_daily`** — Supabase caps API responses at max-rows
+  (1,000 by default) and would otherwise silently understate spend.
+- **⚠️ "Views" means impressions.** `ad_metrics_daily` has no video-view
+  column and `lib/meta/sync.ts` never pulls one. Everywhere the UI says
+  צפיות it is impressions. Real view counts need a sync change first.
+- **Per-client activity log** on the client profile, left-hand column
+  (second child of a plain flex row = left in an RTL document). The
+  standalone `/notes` page is unchanged; both write through the same
+  actions.
+- **Configurable webhook structure** (`lib/crm/webhook-mapping.ts`, pure +
+  tested). This closed a real data-loss bug: the CRM table renders
+  `custom_fields` keyed by `lead_columns.id`, but the webhooks stored
+  extras under their RAW key, and the Meta webhook **discarded every
+  lead-form question except full_name/phone_number/email**. Mappings are
+  edited in the CRM panel (admin only — not shown in the client portal),
+  with already-seen-but-unmapped keys offered as suggestions.
+- **Questionnaire is now once-a-week**: filled → the form is replaced by a
+  confirmation (editing stays behind a toggle), and the portal tab is
+  marked with a • only while it's pending. The current week's answers
+  show on the client's admin profile.
+- **Client reports** (`lib/reports/`, pure + tested): weekly OR monthly,
+  built from real aggregates plus the client's free-text questionnaire
+  answers, editable before sending. **"Sending" = publishing**: setting
+  `sent_at` is what reveals the report in the portal's new דוחות tab.
+  There is no email/WhatsApp delivery wired up; the text is plain so it
+  can be pasted anywhere.
+
+Note on `weekly_reports`: `week_start` keeps its name but now means "first
+day of the period" — the 1st for a monthly report. Rows written before
+phase 19 have `period_kind = 'week'` (column default) and a null
+`period_end`.
+
 ## New idea, not yet scoped or built
 
 User wants (their words, roughly): content/insights for their OWN

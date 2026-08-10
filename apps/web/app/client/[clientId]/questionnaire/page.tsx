@@ -37,21 +37,40 @@ export default async function ClientPortalQuestionnairePage({ params }: { params
   return (
     <div>
       <ClientPortalHeader clientId={params.clientId} clientName={client.name as string} />
-      <PortalTabs
-        clientId={params.clientId}
-        active="questionnaire"
-        notificationsCount={tabsData.notificationsCount}
-        showAutomations={tabsData.showAutomations}
-      />
+      <PortalTabs clientId={params.clientId} active="questionnaire" {...tabsData} />
 
       <h1 className="mb-1 text-xl font-bold">{template?.name ?? "שאלון שבועי"}</h1>
-      <p className="mb-4 text-sm text-slate-500">
-        השבוע: {formatWeekRange(weekStart)}
-        {existingResponse && " · כבר מילאת השבוע — אפשר לעדכן את התשובות"}
-      </p>
+      <p className="mb-4 text-sm text-slate-500">השבוע: {formatWeekRange(weekStart)}</p>
 
-      {template && template.questions.length > 0 ? (
-        <QuestionnaireFillForm clientId={params.clientId} questions={template.questions} existingResponse={existingResponse} />
+      {/* Filled = done. The form is replaced by a confirmation rather than
+          left open, so the questionnaire only asks for attention once a week;
+          it comes back on its own when the next week starts. Editing stays
+          possible behind a toggle for the client who mistyped something. */}
+      {existingResponse ? (
+        <div className="card">
+          <p className="font-medium">תודה! מילאת את השאלון לשבוע הזה. ✅</p>
+          <p className="mt-1 text-sm text-slate-500">השאלון הבא ייפתח בתחילת השבוע הבא.</p>
+
+          <dl className="mt-4 space-y-2 text-sm">
+            {(template?.questions ?? []).map((question) => (
+              <div key={question.id}>
+                <dt className="text-slate-500">{question.label}</dt>
+                <dd className="whitespace-pre-wrap font-medium">{existingResponse.answers[question.id] ?? "—"}</dd>
+              </div>
+            ))}
+          </dl>
+
+          {template && template.questions.length > 0 && (
+            <details className="mt-4 border-t border-slate-100 pt-3">
+              <summary className="cursor-pointer text-sm text-slate-500">רוצה לתקן משהו?</summary>
+              <div className="mt-3">
+                <QuestionnaireFillForm clientId={params.clientId} questions={template.questions} existingResponse={existingResponse} />
+              </div>
+            </details>
+          )}
+        </div>
+      ) : template && template.questions.length > 0 ? (
+        <QuestionnaireFillForm clientId={params.clientId} questions={template.questions} existingResponse={null} />
       ) : (
         <p className="text-slate-500">עדיין לא הוגדר שאלון. נעדכן אותך כשיהיה.</p>
       )}

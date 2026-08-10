@@ -1,25 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { createLead } from "@/lib/actions/leads";
+import { loadFieldMapper } from "@/lib/crm/fetch-webhook-mapping";
 
 /**
  * Generic lead intake for external automation tools (Make/Zapier/n8n/etc.)
  * that can call an arbitrary webhook URL. Each client has their own URL +
  * secret (shown on their edit page), so no shared credential to leak.
  *
- * Accepts a loose JSON body — any of name/full_name, phone/phone_number,
- * email are mapped to leads columns; every other key is kept as-is in
- * leads.custom_fields so this works with whatever field names the
- * client's form/automation tool happens to send.
+ * Accepts a loose JSON body. Where each key lands is configurable per client
+ * ("מבנה ה-Webhook" in the CRM panel) — name/full_name, phone/phone_number
+ * and email map to their leads columns with no setup, and anything else can
+ * be pointed at a custom CRM column. Unmapped keys are still kept in
+ * custom_fields under their raw name, so no incoming data is ever lost.
  */
-const KNOWN_KEYS: Record<string, "name" | "phone" | "email"> = {
-  name: "name",
-  full_name: "name",
-  phone: "phone",
-  phone_number: "phone",
-  email: "email",
-};
-
 export async function POST(req: NextRequest, { params }: { params: { clientId: string } }) {
   const secret = req.nextUrl.searchParams.get("secret") ?? req.headers.get("x-webhook-secret");
   const supabase = supabaseAdmin();
@@ -40,24 +34,16 @@ export async function POST(req: NextRequest, { params }: { params: { clientId: s
     return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });
   }
 
-  const mapped: { name?: string; phone?: string; email?: string } = {};
-  const customFields: Record<string, string | number> = {};
-  for (const [key, value] of Object.entries(body)) {
-    const target = KNOWN_KEYS[key.toLowerCase()];
-    if (target) {
-      mapped[target] = String(value ?? "");
-    } else if (typeof value === "string" || typeof value === "number") {
-      customFields[key] = value;
-    }
-  }
+  const mapFields = await loadFieldMapper(client.id as string);
+  const mapped = mapFields(body);
 
   try {
     const lead = await createLead({
       client_id: client.id as string,
-      name: mapped.name || null,
-      phone: mapped.phone || null,
-      email: mapped.email || null,
-      custom_fields: customFields,
+      name: mapped.name,
+      phone: mapped.phone,
+      email: mapped.email,
+      custom_fields: mapped.custom_fields,
     });
     return NextResponse.json({ ok: true, leadId: lead.id });
   } catch (err) {

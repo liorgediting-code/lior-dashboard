@@ -42,6 +42,7 @@ import type {
   Note,
   QuestionnaireTemplate,
   QuestionnaireResponse,
+  WebhookFieldMapping,
 } from "./domain";
 
 // supabase-js's GenericTable/GenericView require a `Relationships` array
@@ -189,6 +190,7 @@ export type Database = {
           },
         ]
       >;
+      webhook_field_mappings: Table<WebhookFieldMapping, ClientFk<"webhook_field_mappings">>;
     };
     Views: {
       sop_bottlenecks: { Row: SopBottleneck; Relationships: [] };

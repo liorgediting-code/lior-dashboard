@@ -23,7 +23,7 @@ export default async function ClientPortalNotificationsPage({ params }: { params
   return (
     <div>
       <h1 className="mb-4 text-2xl font-bold">{client.name as string}</h1>
-      <PortalTabs clientId={params.clientId} active="notifications" notificationsCount={tabsData.notificationsCount} showAutomations={tabsData.showAutomations} />
+      <PortalTabs clientId={params.clientId} active="notifications" {...tabsData} />
       <FollowUpReminders leads={(leads ?? []) as Lead[]} statuses={(statuses ?? []) as LeadStatus[]} clientId={params.clientId} />
     </div>
   );
