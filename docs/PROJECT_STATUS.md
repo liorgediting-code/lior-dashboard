@@ -316,6 +316,22 @@ Until it's applied, `/clients/[id]/crm` and `/clients/[id]/reports` will
 error (they select columns/tables that don't exist yet). That's
 deliberate — no defensive shims that would hide schema drift.
 
+**Verify right after the push:**
+
+```sql
+-- must NOT list weekly_reports_client_id_week_start_key
+select conname from pg_constraint where conrelid = 'weekly_reports'::regclass;
+```
+
+The migration drops that constraint inside a `do $$` block guarded on the
+name. If the constraint had been renamed by hand the guard silently
+no-ops, the old two-column unique survives, and the first monthly report
+whose month starts on a Sunday fails to insert.
+
+Then smoke: `/clients/[id]/funnels`, `/clients/[id]/crm`,
+`/clients/[id]/reports`, and the portal's `/client/[id]/reports`
+(the דוחות tab only appears once a report has been *sent*).
+
 What phase 19 added, all against the same live schema conventions:
 
 - **Client funnels tab** (`/clients/[id]/funnels`) — the client's funnels,

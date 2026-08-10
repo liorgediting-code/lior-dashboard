@@ -10,6 +10,8 @@ supabase/.temp/
 .DS_Store
 .superpowers/
 
-# Local agent tooling artifacts
+# Local agent tooling artifacts. launch.json is the documented dev-server
+# launch config (see docs/PROJECT_STATUS.md), so it stays committable.
 .claude-flow/
-.claude/
+.claude/*
+!.claude/launch.json
