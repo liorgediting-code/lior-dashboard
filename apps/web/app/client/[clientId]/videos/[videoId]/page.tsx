@@ -31,7 +31,7 @@ export default async function ClientPortalVideoPage({ params }: { params: { clie
 
       <div className="mb-3 flex items-center justify-between">
         <h2 className="font-semibold">{typedVideo.name}</h2>
-        <Link href={`/client/${params.clientId}/videos`} className="text-sm text-indigo-700 underline">
+        <Link href={`/client/${params.clientId}/videos`} className="text-sm text-blue-700 underline">
           כל הסרטונים
         </Link>
       </div>

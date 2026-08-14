@@ -4,7 +4,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="flex">
       <Nav />
-      <main className="min-h-screen flex-1 p-6">{children}</main>
+      <main className="min-h-screen flex-1 p-6 animate-in">{children}</main>
     </div>
   );
 }

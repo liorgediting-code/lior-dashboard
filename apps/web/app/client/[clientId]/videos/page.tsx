@@ -31,7 +31,7 @@ export default async function ClientPortalVideosPage({ params }: { params: { cli
           const open = comments.filter((c) => !c.resolved_at).length;
           const lastComment = sortByTimestamp(comments).slice(-1)[0];
           return (
-            <Link key={video.id} href={`/client/${params.clientId}/videos/${video.id}`} className="card block hover:border-indigo-300">
+            <Link key={video.id} href={`/client/${params.clientId}/videos/${video.id}`} className="card block hover:border-blue-300">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="font-semibold">{video.name}</p>

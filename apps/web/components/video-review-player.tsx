@@ -182,7 +182,7 @@ export function VideoReviewPlayer({ videoId, clientId, streamUrl, durationSecond
               type="button"
               title={`${formatTimestamp(Number(comment.timestamp_seconds))} · ${comment.body}`}
               onClick={() => showComment(comment)}
-              className="absolute top-0 h-3 w-3 -translate-x-1/2 rounded-full border border-white bg-indigo-600 hover:scale-125"
+              className="absolute top-0 h-3 w-3 -translate-x-1/2 rounded-full border border-white bg-blue-600 hover:scale-125"
               style={{ left: `${markerPercent(Number(comment.timestamp_seconds), duration)}%` }}
             />
           ))}

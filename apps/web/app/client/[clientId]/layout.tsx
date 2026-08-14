@@ -1,10 +1,10 @@
 export default function ClientPortalLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-indigo-50/40">
-      <div className="border-b border-indigo-100 bg-indigo-950 py-3 text-center text-sm font-medium text-indigo-100">
+    <div className="min-h-screen">
+      <div className="border-b border-blue-900/40 bg-gradient-to-r from-blue-950 via-blue-900 to-blue-950 py-3 text-center text-sm font-medium text-blue-100">
         הפורטל האישי שלך · LiorEdits
       </div>
-      <main className="mx-auto max-w-5xl p-6">{children}</main>
+      <main className="mx-auto max-w-5xl p-6 animate-in">{children}</main>
     </div>
   );
 }

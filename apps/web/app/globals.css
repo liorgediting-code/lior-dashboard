@@ -7,46 +7,89 @@ html {
 }
 
 body {
-  @apply bg-slate-50 text-slate-900 antialiased;
+  @apply min-h-screen text-slate-900 antialiased;
+  background-color: #eef4ff;
+  background-image:
+    radial-gradient(1100px circle at 100% -10%, rgba(59, 130, 246, 0.14), transparent 60%),
+    radial-gradient(900px circle at -10% 10%, rgba(37, 99, 235, 0.08), transparent 55%);
+  background-attachment: fixed;
 }
 
+* {
+  scrollbar-color: rgb(147 197 253) transparent;
+}
+
+/* ---------- badges ---------- */
 .badge {
-  @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset;
 }
 .badge-winner {
-  @apply bg-green-100 text-green-800;
+  @apply bg-green-50 text-green-700 ring-green-200;
 }
 .badge-suspect {
-  @apply bg-amber-100 text-amber-800;
+  @apply bg-amber-50 text-amber-700 ring-amber-200;
 }
 .badge-kill {
-  @apply bg-red-100 text-red-800;
+  @apply bg-red-50 text-red-700 ring-red-200;
 }
 .badge-insufficient {
-  @apply bg-slate-100 text-slate-600;
+  @apply bg-slate-100 text-slate-600 ring-slate-200;
 }
 
+/* ---------- cards ---------- */
 .card {
-  @apply rounded-xl border border-slate-200 bg-white p-4 shadow-sm;
+  @apply rounded-2xl border border-blue-100/80 bg-white/90 p-4 shadow-[0_1px_2px_rgba(30,64,175,0.06)] backdrop-blur-sm transition-all duration-200;
+}
+a.card:hover,
+button.card:hover {
+  @apply -translate-y-0.5 border-blue-200 shadow-[0_12px_24px_-8px_rgba(37,99,235,0.18)];
 }
 
+/* ---------- buttons ---------- */
 .btn {
-  @apply inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-medium transition-colors;
+  @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60;
 }
 .btn-primary {
-  @apply bg-slate-900 text-white hover:bg-slate-700;
+  @apply bg-blue-600 text-white shadow-sm shadow-blue-600/20 hover:bg-blue-700 hover:shadow-md hover:shadow-blue-600/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2;
 }
 .btn-secondary {
-  @apply bg-slate-100 text-slate-900 hover:bg-slate-200;
+  @apply bg-blue-50 text-blue-900 hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400;
 }
 .btn-danger {
-  @apply bg-red-600 text-white hover:bg-red-700;
+  @apply bg-red-600 text-white hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400;
 }
 
+/* ---------- forms ---------- */
 .input {
-  @apply w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none;
+  @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20;
 }
 
 .label {
   @apply mb-1 block text-sm font-medium text-slate-700;
+}
+
+/* ---------- motion ---------- */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-in {
+  animation: fade-in-up 0.35s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-in {
+    animation: none;
+  }
+  .card,
+  .btn {
+    transition: none;
+  }
 }
