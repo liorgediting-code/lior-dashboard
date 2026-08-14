@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { LeadStatus, LeadColumn, LeadColumnType, WebhookFieldMapping } from "@dashboard-lior/shared";
 import { createLeadStatus, renameLeadStatus, deleteLeadStatus, setDefaultLeadStatus, reorderLeadStatus } from "@/lib/actions/lead-statuses";
 import { createLeadColumn, renameLeadColumn, deleteLeadColumn, reorderLeadColumn } from "@/lib/actions/lead-columns";
-import { deleteWebhookFieldMapping, setWebhookFieldMapping } from "@/lib/actions/webhook-mappings";
+import { createColumnFromWebhookKey, deleteWebhookFieldMapping, setWebhookFieldMapping } from "@/lib/actions/webhook-mappings";
 
 function EditableLabel({ value, onSave }: { value: string; onSave: (value: string) => void }) {
   const [editing, setEditing] = useState(false);
@@ -234,7 +234,11 @@ export function CrmManagePanel({
             action={() => {
               const sourceKey = newMappingKey.trim();
               const target = newMappingTarget;
-              if (sourceKey) runAction(() => setWebhookFieldMapping(clientId, sourceKey, target));
+              if (!sourceKey) {
+                setErrorMessage("צריך למלא שם שדה לפני שלוחצים הוסף");
+                return;
+              }
+              runAction(() => setWebhookFieldMapping(clientId, sourceKey, target));
               setNewMappingKey("");
             }}
             className="mt-2 flex flex-wrap gap-2"
@@ -263,9 +267,22 @@ export function CrmManagePanel({
           </form>
 
           {webhook.suggestedKeys.length > 0 && (
-            <p className="mt-2 text-xs text-slate-500">
-              שדות שהגיעו ועדיין לא מוגדרים: {webhook.suggestedKeys.join(" · ")}
-            </p>
+            <div className="mt-2 space-y-1">
+              <p className="text-xs text-slate-500">שדות שהגיעו ועדיין לא מוגדרים:</p>
+              <div className="flex flex-wrap gap-2">
+                {webhook.suggestedKeys.map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className="rounded-full border border-slate-300 px-2 py-0.5 text-xs hover:border-slate-400 hover:bg-slate-50"
+                    title="הפוך לעמודה במקום להגדיר ידנית"
+                    onClick={() => runAction(() => createColumnFromWebhookKey(clientId, key))}
+                  >
+                    {key} +עמודה
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       )}

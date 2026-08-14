@@ -53,6 +53,43 @@ export async function setWebhookFieldMapping(clientId: string, sourceKey: string
   revalidateCrm(clientId);
 }
 
+/**
+ * One-click version of "create a column, then map this key to it" — for a
+ * suggested key that arrived on a real lead but has nowhere configured to
+ * go yet. Creates a text column named after the key and routes it in the
+ * same action, instead of making the agency do both steps by hand.
+ */
+export async function createColumnFromWebhookKey(clientId: string, sourceKey: string) {
+  assertCrmAccess(clientId);
+
+  const trimmedKey = sourceKey.trim();
+  if (!trimmedKey) throw new Error("חסר שם שדה");
+
+  const supabase = supabaseAdmin();
+
+  const { data: existingColumns } = await supabase
+    .from("lead_columns")
+    .select("sort_order")
+    .eq("client_id", clientId)
+    .order("sort_order", { ascending: false })
+    .limit(1);
+  const nextSortOrder = ((existingColumns?.[0]?.sort_order as number | undefined) ?? -1) + 1;
+
+  const { data: column, error: columnError } = await supabase
+    .from("lead_columns")
+    .insert({ client_id: clientId, name: trimmedKey, type: "text", sort_order: nextSortOrder })
+    .select("id")
+    .single();
+  if (columnError || !column) throw new Error(columnError?.message ?? "יצירת העמודה נכשלה");
+
+  const { error: mappingError } = await supabase
+    .from("webhook_field_mappings")
+    .insert({ client_id: clientId, source_key: trimmedKey, target: column.id as string });
+  if (mappingError) throw new Error(mappingError.message);
+
+  revalidateCrm(clientId);
+}
+
 export async function deleteWebhookFieldMapping(mappingId: string, clientId: string) {
   assertCrmAccess(clientId);
   const supabase = supabaseAdmin();
