@@ -20,6 +20,13 @@ export function supabaseAdmin(): SupabaseClient<Database> {
 
   cached = createClient<Database>(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
+    // Next.js patches global fetch() to cache requests indefinitely unless told
+    // otherwise, and that cache persists across deployments. supabase-js never
+    // sets a cache option, so every query here was at risk of serving a
+    // deployment-stale response. Force no-store so admin reads are always live.
+    global: {
+      fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }),
+    },
   });
   return cached;
 }
