@@ -15,8 +15,14 @@ export async function getPortalTabsData(supabase: SupabaseClient<Database>, clie
   const todayIso = new Date().toISOString().slice(0, 10);
   const weekStart = weekStartIso();
 
-  const [{ data: leads }, { data: statuses }, { count: automationsCount }, { count: questionnaireCount }, { count: reportsCount }] =
-    await Promise.all([
+  const [
+    { data: leads },
+    { data: statuses },
+    { count: automationsCount },
+    { count: questionnaireCount },
+    { count: reportsCount },
+    { count: videosCount },
+  ] = await Promise.all([
       supabase.from("leads").select("id, status_id, follow_up_at").eq("client_id", clientId),
       supabase.from("lead_statuses").select("id, kind").eq("client_id", clientId),
       supabase.from("whatsapp_automations").select("id", { count: "exact", head: true }).eq("client_id", clientId),
@@ -28,6 +34,7 @@ export async function getPortalTabsData(supabase: SupabaseClient<Database>, clie
       // Only reports actually sent to the client — a draft the agency is
       // still writing must not appear in the portal.
       supabase.from("weekly_reports").select("id", { count: "exact", head: true }).eq("client_id", clientId).not("sent_at", "is", null),
+      supabase.from("client_videos").select("id", { count: "exact", head: true }).eq("client_id", clientId),
     ]);
 
   const openStatusIds = new Set((statuses ?? []).filter((s) => s.kind === "open").map((s) => s.id as string));
@@ -40,5 +47,6 @@ export async function getPortalTabsData(supabase: SupabaseClient<Database>, clie
     showAutomations: (automationsCount ?? 0) > 0,
     questionnairePending: (questionnaireCount ?? 0) === 0,
     showReports: (reportsCount ?? 0) > 0,
+    showVideos: (videosCount ?? 0) > 0,
   };
 }

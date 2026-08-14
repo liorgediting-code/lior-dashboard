@@ -43,6 +43,10 @@ import type {
   QuestionnaireTemplate,
   QuestionnaireResponse,
   WebhookFieldMapping,
+  IgDailyMetrics,
+  IgMedia,
+  ClientVideo,
+  VideoComment,
 } from "./domain";
 
 // supabase-js's GenericTable/GenericView require a `Relationships` array
@@ -191,6 +195,30 @@ export type Database = {
         ]
       >;
       webhook_field_mappings: Table<WebhookFieldMapping, ClientFk<"webhook_field_mappings">>;
+      // Phase 20a — keyed by ig_account_id, so no client FK to declare.
+      ig_daily_metrics: Table<IgDailyMetrics>;
+      ig_media: Table<IgMedia>;
+      // Phase 20b
+      client_videos: Table<ClientVideo, ClientFk<"client_videos">>;
+      video_comments: Table<
+        VideoComment,
+        [
+          {
+            foreignKeyName: "video_comments_video_id_fkey";
+            columns: ["video_id"];
+            isOneToOne: false;
+            referencedRelation: "client_videos";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "video_comments_client_id_fkey";
+            columns: ["client_id"];
+            isOneToOne: false;
+            referencedRelation: "clients";
+            referencedColumns: ["id"];
+          },
+        ]
+      >;
     };
     Views: {
       sop_bottlenecks: { Row: SopBottleneck; Relationships: [] };

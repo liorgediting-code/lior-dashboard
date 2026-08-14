@@ -9,6 +9,7 @@ export function ClientTabs({ clientId, active }: { clientId: string; active: str
     { key: "analyzer", label: "מנתח מודעות", href: `/clients/${clientId}/analyzer` },
     { key: "crm", label: "CRM", href: `/clients/${clientId}/crm` },
     { key: "whatsapp", label: "WhatsApp", href: `/clients/${clientId}/whatsapp` },
+    { key: "videos", label: "וידאו", href: `/clients/${clientId}/videos` },
     { key: "reports", label: "דוח שבועי", href: `/clients/${clientId}/reports` },
   ];
 

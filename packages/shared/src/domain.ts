@@ -41,6 +41,8 @@ export type Client = {
   meta_ad_account_id: string | null;
   meta_access_token: string | null;
   webhook_secret: string | null;
+  /** Google Drive folder holding this client's ad videos (phase 20b). */
+  drive_folder_id: string | null;
   created_at: string;
 };
 
@@ -443,5 +445,99 @@ export type QuestionnaireResponse = {
   week_start: string;
   answers: Record<string, string | number | null>;
   submitted_at: string;
+  created_at: string;
+};
+
+// --- Phase 20a: Instagram insights ---
+
+/**
+ * One day of account-level Instagram metrics.
+ *
+ * Every metric is nullable because Meta answers with an `unavailable[]` list
+ * rather than an error when it will not serve a metric (too few followers,
+ * value too small to be anonymous, data not yet aggregated). Null means
+ * "Meta did not give us this", NOT zero — rendering it as 0 would invent a
+ * bad day that never happened.
+ */
+export type IgDailyMetrics = {
+  id: string;
+  /** The Instagram user id the numbers belong to. */
+  ig_account_id: string;
+  /** yyyy-mm-dd. */
+  date: string;
+  reach: number | null;
+  views: number | null;
+  total_interactions: number | null;
+  profile_views: number | null;
+  followers_count: number | null;
+  created_at: string;
+};
+
+export type IgMediaType = "IMAGE" | "VIDEO" | "CAROUSEL_ALBUM" | "REELS" | (string & {});
+
+export type IgMedia = {
+  id: string;
+  ig_account_id: string;
+  /** Instagram's own media id — the one /{media-id}/insights takes. */
+  media_id: string;
+  media_type: IgMediaType | null;
+  caption: string | null;
+  permalink: string | null;
+  thumbnail_url: string | null;
+  posted_at: string | null;
+  views: number | null;
+  reach: number | null;
+  likes: number | null;
+  comments_count: number | null;
+  saved: number | null;
+  shares: number | null;
+  /** When the insights half of this row was last refreshed. */
+  metrics_synced_at: string | null;
+  created_at: string;
+};
+
+// --- Phase 20b: Drive-backed video review ---
+
+export type ClientVideo = {
+  id: string;
+  client_id: string;
+  /** Google Drive file id. The bytes stay in Drive; we only reference them. */
+  drive_file_id: string;
+  name: string;
+  mime_type: string | null;
+  size_bytes: number | null;
+  /** Null until Drive has finished processing the file and reports it. */
+  duration_seconds: number | null;
+  thumbnail_url: string | null;
+  synced_at: string;
+  created_at: string;
+};
+
+/** A single freehand stroke, in coordinates normalised to 0..1. */
+export type VideoDrawingStroke = {
+  color: string;
+  width: number;
+  /** [[x, y], ...] with both axes in 0..1 of the video's display box. */
+  points: [number, number][];
+};
+
+export type VideoDrawing = {
+  strokes: VideoDrawingStroke[];
+};
+
+/** Who left the note — decides which side of the review it renders on. */
+export type VideoCommentAuthorKind = "client" | "agency";
+
+export type VideoComment = {
+  id: string;
+  video_id: string;
+  client_id: string;
+  /** Fractional seconds into the video. Never rounded — see the migration. */
+  timestamp_seconds: number;
+  body: string;
+  drawing: VideoDrawing | null;
+  author_kind: VideoCommentAuthorKind;
+  author_name: string | null;
+  resolved_at: string | null;
   created_at: string;
 };

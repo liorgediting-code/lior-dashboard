@@ -368,15 +368,190 @@ day of the period" — the 1st for a monthly report. Rows written before
 phase 19 have `period_kind = 'week'` (column default) and a null
 `period_end`.
 
-## New idea, not yet scoped or built
+## Phase 20: Instagram insights + video review — BUILT, NOT YET VERIFIED LIVE
 
-User wants (their words, roughly): content/insights for their OWN
-Instagram page via the Meta app they already connected — pull all
-Instagram data/metrics, plus the ability to schedule posts (reels or
-regular posts) they add. This would need the Instagram Graph API
-(separate from the Marketing API already used for ad sync) — content
-publishing scope, media upload, a scheduler. Not brainstormed yet — needs
-its own spec before building.
+Two features built in parallel by two subagents on 2026-08-12, on a
+foundation (migration, domain types, IG client, nav) written first by the
+lead so the agents never touched the same files. Migration
+`20260812100000_phase20_instagram_video_review.sql` is **written but NOT
+applied** — see the blockers at the end.
+
+### Correction to the note this section replaced
+
+The old text said this would run "via the Meta app they already
+connected". **There is no connected Meta app.** `META_USE_MOCK=true` and
+all five clients have `meta_ad_account_id` and `meta_access_token` set to
+null — the entire ad-metrics side of the dashboard runs on
+`lib/meta/mock-client.ts`. Do not assume real ad data exists anywhere.
+
+### 20a — Instagram insights
+
+Reached through **hookmyapp**, not a Meta app of our own. The agency's
+Instagram (`liorgabay.media`, IG user id `17841468760275702`, a BUSINESS
+account) is connected as hookmyapp channel `ch_iTvY8c50`.
+`hookmyapp channels env ch_iTvY8c50` prints the credentials:
+
+    INSTAGRAM_GRAPH_API_URL = https://gateway.hookmyapp.com/meta/v25.0
+    INSTAGRAM_ACCOUNT_ID    = 17841468760275702
+    INSTAGRAM_ACCESS_TOKEN  = <hookmyapp channel token>
+
+This means **no Meta app, no OAuth, no app review** — the gateway speaks
+ordinary Graph API. Three traps, all verified live against the gateway:
+
+- Auth is `Authorization: Bearer`, **not** the `access_token` query
+  parameter Meta's own docs use. The query param returns
+  `401 MISSING_BEARER`.
+- Paging must follow `paging.cursors.after`, never `paging.next` — the
+  absolute `next` URL points at Meta and bypasses the gateway's auth.
+- Insights responses carry `title`/`description` in **Dutch**. Never
+  render them; the UI uses its own Hebrew labels.
+
+Metrics are nullable end to end on purpose: Meta returns metrics it will
+not serve in an `unavailable[]` list rather than erroring, and the account
+has 27 followers so demographics are suppressed. **Null means "Meta didn't
+give us this", never 0.** Data lags up to 48h, so the sync re-reads a
+14-day trailing window and upserts.
+
+#### The insights edge answers in TWO shapes — this cost three bugs
+
+Found only by running the sync for real against the live gateway; all three
+were invisible to typecheck, unit tests AND the route smoke, because each
+one failed into a `catch` that returned null and a null is indistinguishable
+from Meta legitimately withholding a metric.
+
+1. **`reach` returns a daily series** (`values[]`, each with `end_time`).
+   **`views`, `total_interactions` and `profile_views` return nothing at
+   all** unless you pass `metric_type=total_value`, and then only ONE
+   aggregate for the whole range. Without it the response is literally
+   `{"data":[]}`. To get a daily series out of the second group you must ask
+   day by day with `since=D&until=D+1` — `since === until` is treated as a
+   zero-length range and returns empty. One request per day; fine on a cron.
+2. **Media insights hang off the MEDIA node, not the account.** The client's
+   `igGet` prefixes the account id, so `igGet("<mediaId>/insights")` built
+   `/{account}/{media}/insights` and 404'd for every post. Use `igGetNode`.
+   Before the fix all three posts had null metrics and `metrics_synced_at`
+   unset; after, the top video reads 680 views / 441 reach / 28 likes.
+3. **`followers_count` was pinned to "today"** — but insights lag means the
+   newest row is routinely yesterday or older, so it matched no row and was
+   never stored. It now attaches to the newest date present.
+
+**Lesson for the next metric added here:** a swallowed error and a genuinely
+unavailable metric look identical downstream. Verify a new metric against
+the live gateway with curl before trusting a null.
+
+Files: `lib/instagram/{client,metrics,insights,fetch-insights}.ts`,
+`app/api/cron/instagram-sync/route.ts`, `app/(admin)/instagram/page.tsx`.
+
+### 20b — Drive-backed video review
+
+Frame.io-style: clients watch their ad videos and leave fixes pinned to an
+exact second, as text and freehand drawing; the agency sees every fix per
+video. Videos are **not uploaded** — they are read from a Google Drive
+folder per client (`clients.drive_folder_id`).
+
+- **Drive auth is a public "anyone with link" folder + `GOOGLE_API_KEY`.**
+  The owner chose this over a service account after being told the folder's
+  videos become link-reachable by anyone. It sits behind a one-function
+  seam in `lib/videos/drive.ts` so switching later is a one-file change.
+- `/api/videos/[id]/stream` **must** forward `Range` and return 206 —
+  without it seeking breaks silently and the whole timecode feature is
+  dead. This is the load-bearing path and it is **not yet proven at
+  runtime** (no API key, no applied migration).
+- Drawing coordinates are stored **normalised 0..1** against the display
+  box, so annotations don't drift between a phone and a desktop player.
+- `timestamp_seconds` is numeric, never rounded — a fix at 12.4s must not
+  snap to 12s or reviewer and editor are on different frames.
+
+### Security fix applied to the subagent's work — read this before touching the stream route
+
+The agent originally guarded the stream route by copying `assertCrmAccess`:
+pass when there is **no** portal session cookie, 403 when the cookie belongs
+to another client. That contract is fine for server actions behind the
+open-by-design admin pages, but on a public GET it inverts the protection —
+a portal client could **delete their own cookie** and then stream any other
+client's footage by UUID. Only logged-in clients would have been
+constrained.
+
+Replaced with `lib/videos/stream-grant.ts`: a short-lived (6h) HMAC grant
+scoped to ONE video id, minted server-side by the pages that already know
+the caller is entitled, and passed in the `<video>` src. The route accepts a
+valid grant **or** a session cookie owning the video, and treats absence of
+evidence as no permission. Grant is checked first so an admin using the
+"enter as client" shortcut isn't 403'd by a stale cookie for another client.
+15 tests in `lib/videos/__tests__/stream-grant.test.ts`.
+
+Note this weakness is **systemic, not local**: `assertCrmAccess` still has
+the "no cookie means admin" shape everywhere else it is used. That is
+tolerable only while the admin dashboard has no login and runs on one
+machine. Revisit together with admin auth.
+
+### A second instance of the same bug class, in the write path
+
+`addVideoComment` took `clientId` AND `videoId` as separate caller-supplied
+arguments and authorised with `assertCrmAccess(input.clientId)`. A portal
+client could post **another client's videoId alongside their own clientId**:
+the cookie matched, the check passed, and the comment landed on a video they
+cannot see (the portal page fetches comments by `video_id` alone, so the
+victim would render it). Fixed by reading `client_id` from the video row —
+the two ids must agree and only the database knows which is true.
+`resolveVideoComment` likewise no longer takes the client id as an argument.
+
+**The lesson for anything added here later:** an id supplied by the caller
+can be checked against the session, but it cannot be checked against another
+caller-supplied id. Derive ownership from the row.
+
+### Verification status
+
+- `npm run typecheck` clean; `npm test` → **159 passing**; `next build`
+  succeeds with all four new routes.
+- Browser smoke on 2026-08-12 caught two things typecheck and vitest could
+  not, both from the unapplied migration:
+  `/instagram` returned **500** (`fetch-insights.ts` threw on the missing
+  `ig_daily_metrics`) and `/clients/[id]/videos` returned **404** (it named
+  `drive_folder_id` in a select, so the whole client row came back null).
+  Fixed with `lib/supabase/schema-state.ts` (`isMissingSchemaError`, narrow
+  to the four not-in-schema codes) and by selecting `*` on the client row.
+  Both now 200 with a clean empty/setup state, no errors in the dev log.
+  **This is why the smoke step is not optional in this repo.**
+- **Run tests as `npm test`, not `npx vitest run` from the repo root.** The
+  `@/` alias lives in `apps/web/vitest.config.ts`, so a root invocation
+  fails to resolve `@/lib/format` and reports a phantom failure in
+  `lib/reports/__tests__/periods.test.ts`. Both subagents were fooled by
+  this and reported it as a pre-existing break. It is not.
+### Applied and verified live, 2026-08-12
+
+- Migration **applied** to project `ykqmhkzletbaisqsjesv`; `migration list`
+  shows local == remote for all 19.
+- Schema verified behaviourally against the live DB (13 checks, all pass,
+  every test row cleaned up): four tables + `clients.drive_folder_id`
+  reachable; a partial metrics row keeps absent metrics null rather than 0;
+  the `(ig_account_id, date)` index rejects a duplicate (`23505`);
+  `duration_seconds` stays null rather than 0; `timestamp_seconds` keeps its
+  fraction (12.4 stored, not 12); a normalised drawing round-trips through
+  jsonb byte-identical; the `author_kind` check rejects an unknown kind
+  (`23514`); deleting a video cascades to its comments.
+- **The Instagram sync has now run for real** against the live gateway:
+  13 daily rows, 3 posts, all metrics populated. `/instagram` renders the
+  real numbers (680/441/99/34/27) with correct Hebrew labels, 200, no errors.
+- Instagram credentials are in `apps/web/.env.local`, pulled from
+  `hookmyapp channels env ch_iTvY8c50`.
+
+### Still blocked, owner action needed
+
+`GOOGLE_API_KEY` and each client's `drive_folder_id` are unset, so Drive
+listing and — importantly — the **Range/206 stream path remain unproven at
+runtime**. That is the one load-bearing behaviour still undemonstrated: if
+Range forwarding is wrong, seeking breaks silently and timecoded comments
+are useless. Treat it as unverified until a real video seeks in a browser.
+
+## Still not built
+
+Instagram post scheduling (reels/regular posts). Deliberately deferred —
+the owner chose insights first. Note hookmyapp's publish has **no
+scheduling** and its media containers expire after 24h, so the scheduler
+would have to live in this app (`CRON_SECRET` and the cron pattern already
+exist), and Meta must fetch media from a **public HTTPS URL**, which means
+a public Supabase Storage bucket.
 
 ## Session-management notes for whoever picks this up
 

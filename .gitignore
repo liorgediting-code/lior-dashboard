@@ -15,3 +15,10 @@ supabase/.temp/
 .claude-flow/
 .claude/*
 !.claude/launch.json
+
+# Swarm coordination state + its vector store, written by `swarm init` and
+# by the agents themselves. Local scratch tied to one machine's swarm id —
+# nothing another clone can use.
+.swarm/
+ruvector.db
+agentdb.rvf*

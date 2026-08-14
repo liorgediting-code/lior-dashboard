@@ -7,6 +7,7 @@ const links = [
   { href: "/funnels", label: "פאנלים" },
   { href: "/notes", label: "יומן הערות" },
   { href: "/questionnaires", label: "שאלונים" },
+  { href: "/instagram", label: "אינסטגרם" },
   { href: "/missions", label: "משימות" },
   { href: "/goals", label: "מטרות" },
   { href: "/kill-queue", label: "תור הריגה" },
