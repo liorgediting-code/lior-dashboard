@@ -140,6 +140,30 @@ export default async function EditClientPage({ params }: { params: { id: string 
         </div>
 
         <div className="card space-y-4">
+          <h2 className="font-semibold">תיקיית וידאו ב-Drive</h2>
+          <p className="text-sm text-slate-500">
+            תיקייה אחת לכל לקוח, משותפת ב״כל מי שיש לו הקישור״. הסרטונים מתוכה נמשכים אוטומטית ללשונית{" "}
+            <a href={`/clients/${c.id}/videos`} className="underline">
+              וידאו
+            </a>{" "}
+            — אין צורך להעלות כלום.
+          </p>
+          <div>
+            <label className="label" htmlFor="drive_folder_id">
+              קישור לתיקייה (או מזהה)
+            </label>
+            <input
+              className="input font-mono"
+              id="drive_folder_id"
+              name="drive_folder_id"
+              dir="ltr"
+              placeholder="https://drive.google.com/drive/folders/..."
+              defaultValue={c.drive_folder_id ?? ""}
+            />
+          </div>
+        </div>
+
+        <div className="card space-y-4">
           <h2 className="font-semibold">הקלטה ותמלול שיחת אסטרטגיה</h2>
           <p className="text-sm text-slate-500">שדה חובה לפני אישור Gate 1.</p>
           <div>

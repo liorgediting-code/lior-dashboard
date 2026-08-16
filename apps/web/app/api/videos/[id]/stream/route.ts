@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { CLIENT_SESSION_COOKIE_NAME, verifyClientSession } from "@/lib/auth/client-session";
 import { DriveNotConfiguredError, fetchDriveFileBytes } from "@/lib/videos/drive";
 import { VIDEO_GRANT_PARAM, verifyVideoGrant } from "@/lib/videos/stream-grant";
+import { buildStreamResponseInit, isDriveFailure, mapDriveFailureStatus } from "@/lib/videos/stream-response";
 
 /**
  * Streams one video's bytes from Drive, forwarding Range so the <video>
@@ -60,26 +61,22 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     throw err;
   }
 
-  if (!driveRes.ok && driveRes.status !== 206) {
+  if (isDriveFailure(driveRes.status)) {
     return NextResponse.json(
       { error: `drive returned ${driveRes.status}` },
-      { status: driveRes.status === 404 ? 404 : 502 }
+      { status: mapDriveFailureStatus(driveRes.status) }
     );
   }
 
-  // Whitelist only — never spread Drive's own headers through, several of
-  // which (auth-adjacent, CORS) must not leak to the browser verbatim.
-  const headers = new Headers();
-  const contentType = driveRes.headers.get("content-type") ?? (video.mime_type as string | null);
-  if (contentType) headers.set("Content-Type", contentType);
-  const contentLength = driveRes.headers.get("content-length");
-  if (contentLength) headers.set("Content-Length", contentLength);
-  const contentRange = driveRes.headers.get("content-range");
-  if (contentRange) headers.set("Content-Range", contentRange);
-  headers.set("Accept-Ranges", "bytes");
+  // Header/status shaping lives in lib/videos/stream-response.ts so it can
+  // be tested without Drive credentials — it's the logic that decides
+  // whether seeking works, and it fails silently when wrong.
+  const { status, headers } = buildStreamResponseInit(
+    driveRes.status,
+    driveRes.headers,
+    video.mime_type as string | null
+  );
 
-  // Pass Drive's status straight through: 206 stays 206 when a Range was
-  // honoured, 200 when the whole file came back. Body streams through as-is
-  // — never buffer a whole video into memory.
-  return new NextResponse(driveRes.body, { status: driveRes.status, headers });
+  // Body streams through as-is — never buffer a whole video into memory.
+  return new NextResponse(driveRes.body, { status, headers });
 }

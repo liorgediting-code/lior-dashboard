@@ -29,7 +29,17 @@ export default async function ClientVideosAdminPage({ params }: { params: { id: 
 
       <div className="mb-4 flex items-center justify-between">
         <p className="text-sm text-slate-500">
-          {hasFolder ? "סרטונים נקראים ישירות מתיקיית Drive של הלקוח." : "לא הוגדרה תיקיית Drive ללקוח הזה — הוסיפו drive_folder_id בעריכת הלקוח."}
+          {hasFolder ? (
+            "סרטונים נקראים ישירות מתיקיית Drive של הלקוח."
+          ) : (
+            <>
+              לא הוגדרה תיקיית Drive ללקוח הזה —{" "}
+              <a href={`/clients/${params.id}/edit`} className="underline">
+                הוסיפו אותה בעריכת הלקוח
+              </a>
+              .
+            </>
+          )}
         </p>
         {hasFolder && <VideoSyncButton clientId={params.id} />}
       </div>

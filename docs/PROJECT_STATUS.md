@@ -536,13 +536,61 @@ caller-supplied id. Derive ownership from the row.
 - Instagram credentials are in `apps/web/.env.local`, pulled from
   `hookmyapp channels env ch_iTvY8c50`.
 
+### Phase 20b, 2026-08-16 — the folder had no way in
+
+`drive_folder_id` shipped with **no write path at all**: no form field, no
+action, no argument anywhere. The column existed, the sync read it, and the
+videos tab told the owner to "add it in client edit" — where it did not
+exist. The whole Drive half was unreachable without hand-editing the
+database, and nothing caught it because every layer was individually
+correct.
+
+- `lib/videos/drive-folder.ts` — `parseDriveFolderId` collapses every shape
+  Drive hands out (`/drive/folders/<id>?usp=sharing`, the `/drive/u/0/`
+  multi-account variant, legacy `open?id=`, a bare id) to the id. Nobody
+  copies an id; they copy the address bar. **Storing the URL raw would not
+  error** — `files.list?q='<url>' in parents` just matches nothing, so the
+  sync would report "0 videos" on a full folder. Invalid input throws rather
+  than storing something that fails silently later. Empty → `null`, never
+  `""` (`Boolean("")` is false but `"" != null` is true, and the two would
+  disagree about whether a folder is configured). 10 tests.
+- Field added to `/clients/[id]/edit`, wired through `UpdateClientInput`;
+  the videos-tab empty state now links there instead of naming a column.
+- Write path verified against the live DB: probe value written to a real
+  client, read back identical, reverted to `null`. No schema surprise.
+- `lib/videos/stream-response.ts` — the header whitelist and status
+  passthrough were extracted out of the route so seeking is testable
+  **without Drive credentials**, matching this repo's pure-function test
+  convention (there is no `vi.mock` anywhere in the codebase). 13 tests pin
+  the parts that fail silently: `Accept-Ranges` is advertised even on a full
+  200 (the browser will not send a Range request until it has seen it, so
+  omitting it kills seeking before the 206 path is ever reached);
+  `Content-Range` survives on a 206; a 206 is not treated as a failure; and
+  `content-encoding`/`set-cookie`/CORS/`x-goog-*` are dropped.
+
 ### Still blocked, owner action needed
 
-`GOOGLE_API_KEY` and each client's `drive_folder_id` are unset, so Drive
-listing and — importantly — the **Range/206 stream path remain unproven at
-runtime**. That is the one load-bearing behaviour still undemonstrated: if
-Range forwarding is wrong, seeking breaks silently and timecoded comments
-are useless. Treat it as unverified until a real video seeks in a browser.
+`GOOGLE_API_KEY` is unset. **Seeking is still unproven end to end** — the
+forwarding logic is now pinned by tests, but what those tests cannot answer
+is Drive-side: whether `files.get?alt=media` with an *API key* honours a
+Range header at all, and whether large public ad videos trip Drive's virus
+scan (`cannotDownloadAbusiveFile`, a 403 this route would surface as a bare
+502). Both need the real key.
+
+To finish: a `GOOGLE_API_KEY` from a GCP project **with the Drive API
+enabled** (a key without that enablement fails with a misleading 403), plus
+one client's folder link pasted into client edit. Then sync, `curl -H
+"Range: bytes=0-99"` the stream route expecting 206 + `Content-Range`, and
+confirm a real video seeks in a browser.
+
+### Nothing schedules the cron routes
+
+There is no `vercel.json` and no scheduler config in the repo — every
+`/api/cron/*` route (including `instagram-sync`) is triggered externally,
+presumably the n8n/Make setup the `CRON_SECRET` comment implies. The
+Instagram sync has only ever run because it was curled by hand. Whoever
+owns that scheduler needs to add `instagram-sync` to it; deliberately not
+adding scheduling infrastructure here without the owner asking.
 
 ## Still not built
 

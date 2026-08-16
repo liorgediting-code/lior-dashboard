@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { dispatchWebhook } from "@/lib/notifications/dispatch-webhook";
+import { parseDriveFolderId } from "@/lib/videos/drive-folder";
 import type { DriveLink } from "@dashboard-lior/shared";
 
 export interface CreateClientInput {
@@ -100,6 +101,7 @@ export interface UpdateClientInput {
   drive_links?: DriveLink[];
   strategy_call_recording_url?: string | null;
   strategy_call_transcript_url?: string | null;
+  drive_folder_id?: string | null;
 }
 
 function numOrNull(formData: FormData, key: string): number | null {
@@ -164,5 +166,9 @@ export async function updateClientFromForm(clientId: string, formData: FormData)
     drive_links: driveLinks,
     strategy_call_recording_url: String(formData.get("strategy_call_recording_url") ?? "") || null,
     strategy_call_transcript_url: String(formData.get("strategy_call_transcript_url") ?? "") || null,
+    // Parsed, not stored raw: the user pastes a "Get link" URL, and Drive's
+    // files.list treats a URL in `q` as an id that simply matches nothing —
+    // so an unparsed value syncs 0 videos instead of erroring.
+    drive_folder_id: parseDriveFolderId(formData.get("drive_folder_id") as string | null),
   });
 }
