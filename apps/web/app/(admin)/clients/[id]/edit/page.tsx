@@ -111,6 +111,7 @@ export default async function EditClientPage({ params }: { params: { id: string 
             appBaseUrl={process.env.APP_BASE_URL ?? ""}
             hasPassword={Boolean(c.crm_password_hash)}
             hasWebhook={Boolean(c.webhook_secret)}
+            webhookSecret={c.webhook_secret}
           />
         </div>
 

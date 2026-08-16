@@ -37,12 +37,15 @@ export function CreateCrmPanel({
   appBaseUrl,
   hasPassword,
   hasWebhook,
+  webhookSecret,
 }: {
   clientId: string;
   clientName: string;
   appBaseUrl: string;
   hasPassword: boolean;
   hasWebhook: boolean;
+  /** Stored in plaintext (unlike the password), so it can be shown again anytime — not just right after creation. */
+  webhookSecret?: string | null;
 }) {
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<{ password: string; webhookSecret: string } | null>(null);
@@ -65,7 +68,11 @@ export function CreateCrmPanel({
   }
 
   const portalUrl = `${appBaseUrl}/client/${clientId}/login`;
-  const webhookUrl = result ? `${appBaseUrl}/api/webhooks/leads/${clientId}?secret=${result.webhookSecret}` : null;
+  const webhookUrl = result
+    ? `${appBaseUrl}/api/webhooks/leads/${clientId}?secret=${result.webhookSecret}`
+    : webhookSecret
+      ? `${appBaseUrl}/api/webhooks/leads/${clientId}?secret=${webhookSecret}`
+      : null;
 
   return (
     <div className="space-y-3">
@@ -100,6 +107,36 @@ export function CreateCrmPanel({
             <code className="block break-all font-mono text-xs">סיסמה: {result.password}</code>
           </div>
 
+          <div>
+            <div className="mb-1 flex items-center justify-between">
+              <p className="font-medium">כתובת ה-Webhook להכנסת לידים:</p>
+              <button type="button" className="btn btn-secondary text-xs" onClick={() => copy(webhookUrl, "url")}>
+                {copied === "url" ? "הועתק ✓" : "העתק"}
+              </button>
+            </div>
+            <code className="break-all font-mono text-xs">{webhookUrl}</code>
+          </div>
+
+          <div>
+            <div className="mb-1 flex items-center justify-between">
+              <p className="font-medium">פרומפט מוכן להעתקה ל-Claude Code / Make.com:</p>
+              <button
+                type="button"
+                className="btn btn-secondary text-xs"
+                onClick={() => copy(buildAutomationPrompt(clientName, webhookUrl), "prompt")}
+              >
+                {copied === "prompt" ? "הועתק ✓" : "העתק"}
+              </button>
+            </div>
+            <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded bg-white p-2 font-mono text-xs">
+              {buildAutomationPrompt(clientName, webhookUrl)}
+            </pre>
+          </div>
+        </div>
+      )}
+
+      {!result && webhookUrl && (
+        <div className="space-y-3 rounded-lg bg-slate-50 p-3 text-sm">
           <div>
             <div className="mb-1 flex items-center justify-between">
               <p className="font-medium">כתובת ה-Webhook להכנסת לידים:</p>
