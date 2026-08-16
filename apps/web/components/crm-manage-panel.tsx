@@ -6,6 +6,9 @@ import { createLeadStatus, renameLeadStatus, deleteLeadStatus, setDefaultLeadSta
 import { createLeadColumn, renameLeadColumn, deleteLeadColumn, reorderLeadColumn } from "@/lib/actions/lead-columns";
 import { createColumnFromWebhookKey, deleteWebhookFieldMapping, setWebhookFieldMapping } from "@/lib/actions/webhook-mappings";
 
+/** Sentinel select value meaning "create a new column for this field" — never a real column id (those are uuids). */
+const NEW_COLUMN_TARGET = "__new_column__";
+
 function EditableLabel({ value, onSave }: { value: string; onSave: (value: string) => void }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -70,7 +73,16 @@ export function CrmManagePanel({
   const [newColumnType, setNewColumnType] = useState<LeadColumnType>("text");
   const [newMappingKey, setNewMappingKey] = useState("");
   const [newMappingTarget, setNewMappingTarget] = useState("ignore");
+  const [newMappingColumnName, setNewMappingColumnName] = useState("");
+  const [newMappingColumnType, setNewMappingColumnType] = useState<LeadColumnType>("text");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Which existing mapping row is mid-"create a new column for this field" —
+  // that needs a name typed in before it can be saved, so picking it from the
+  // select can't fire the action immediately the way other targets do.
+  const [renamingMappingId, setRenamingMappingId] = useState<string | null>(null);
+  const [renamingColumnName, setRenamingColumnName] = useState("");
+  const [renamingColumnType, setRenamingColumnType] = useState<LeadColumnType>("text");
 
   // Server actions here throw meaningful business-rule errors (e.g. "לא ניתן
   // למחוק סטטוס קבוע") — without this they'd vanish as unhandled rejections.
@@ -206,25 +218,69 @@ export function CrmManagePanel({
 
           <div className="space-y-1">
             {webhook.mappings.map((mapping) => (
-              <div key={mapping.id} className="flex items-center gap-2 text-sm">
-                <span className="flex-1 truncate" title={mapping.source_key}>
-                  {mapping.source_key}
-                </span>
-                <span className="text-slate-400">←</span>
-                <select
-                  className="input w-44"
-                  value={mapping.target}
-                  onChange={(e) => runAction(() => setWebhookFieldMapping(clientId, mapping.source_key, e.target.value))}
-                >
-                  <TargetOptions columns={sortedColumns} />
-                </select>
-                <button
-                  type="button"
-                  className="btn btn-secondary text-xs"
-                  onClick={() => runAction(() => deleteWebhookFieldMapping(mapping.id, clientId))}
-                >
-                  מחק
-                </button>
+              <div key={mapping.id}>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="flex-1 truncate" title={mapping.source_key}>
+                    {mapping.source_key}
+                  </span>
+                  <span className="text-slate-400">←</span>
+                  <select
+                    className="input w-44"
+                    value={renamingMappingId === mapping.id ? NEW_COLUMN_TARGET : mapping.target}
+                    onChange={(e) => {
+                      if (e.target.value === NEW_COLUMN_TARGET) {
+                        setRenamingMappingId(mapping.id);
+                        setRenamingColumnName(mapping.source_key);
+                        setRenamingColumnType("text");
+                        return;
+                      }
+                      setRenamingMappingId(null);
+                      runAction(() => setWebhookFieldMapping(clientId, mapping.source_key, e.target.value));
+                    }}
+                  >
+                    <TargetOptions columns={sortedColumns} />
+                  </select>
+                  <button
+                    type="button"
+                    className="btn btn-secondary text-xs"
+                    onClick={() => runAction(() => deleteWebhookFieldMapping(mapping.id, clientId))}
+                  >
+                    מחק
+                  </button>
+                </div>
+                {renamingMappingId === mapping.id && (
+                  <div className="mt-1 flex flex-wrap items-center gap-2 rounded bg-slate-50 p-2 text-sm">
+                    <span className="text-xs text-slate-500">שם העמודה החדשה:</span>
+                    <input
+                      autoFocus
+                      className="input flex-1"
+                      value={renamingColumnName}
+                      onChange={(e) => setRenamingColumnName(e.target.value)}
+                    />
+                    <select className="input w-28" value={renamingColumnType} onChange={(e) => setRenamingColumnType(e.target.value as LeadColumnType)}>
+                      <option value="text">טקסט</option>
+                      <option value="number">מספר</option>
+                    </select>
+                    <button
+                      type="button"
+                      className="btn btn-secondary text-xs"
+                      onClick={() => {
+                        const name = renamingColumnName.trim();
+                        if (!name) {
+                          setErrorMessage("צריך למלא שם עמודה");
+                          return;
+                        }
+                        runAction(() => createColumnFromWebhookKey(clientId, mapping.source_key, name, renamingColumnType));
+                        setRenamingMappingId(null);
+                      }}
+                    >
+                      צור עמודה
+                    </button>
+                    <button type="button" className="btn btn-secondary text-xs" onClick={() => setRenamingMappingId(null)}>
+                      ביטול
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
             {webhook.mappings.length === 0 && <p className="text-sm text-slate-500">אין עדיין שדות מוגדרים.</p>}
@@ -233,22 +289,36 @@ export function CrmManagePanel({
           <form
             action={() => {
               const sourceKey = newMappingKey.trim();
-              const target = newMappingTarget;
               if (!sourceKey) {
                 setErrorMessage("צריך למלא שם שדה לפני שלוחצים הוסף");
                 return;
               }
-              runAction(() => setWebhookFieldMapping(clientId, sourceKey, target));
+              if (newMappingTarget === NEW_COLUMN_TARGET) {
+                const name = newMappingColumnName.trim();
+                if (!name) {
+                  setErrorMessage("צריך למלא שם עמודה");
+                  return;
+                }
+                runAction(() => createColumnFromWebhookKey(clientId, sourceKey, name, newMappingColumnType));
+              } else {
+                runAction(() => setWebhookFieldMapping(clientId, sourceKey, newMappingTarget));
+              }
               setNewMappingKey("");
+              setNewMappingColumnName("");
             }}
-            className="mt-2 flex flex-wrap gap-2"
+            className="mt-2 flex flex-wrap items-center gap-2"
           >
             <input
               className="input flex-1"
               list="webhook-suggested-keys"
               placeholder="שם השדה כפי שהוא מגיע"
               value={newMappingKey}
-              onChange={(e) => setNewMappingKey(e.target.value)}
+              onChange={(e) => {
+                setNewMappingKey(e.target.value);
+                // Keep the new-column name in sync with the key by default —
+                // still fully editable, just a sane starting point.
+                if (newMappingTarget === NEW_COLUMN_TARGET) setNewMappingColumnName(e.target.value);
+              }}
             />
             {/* Datalist rather than a plain select: the key can be anything
                 the form sends, but the ones already received are worth
@@ -258,9 +328,31 @@ export function CrmManagePanel({
                 <option key={key} value={key} />
               ))}
             </datalist>
-            <select className="input w-44" value={newMappingTarget} onChange={(e) => setNewMappingTarget(e.target.value)}>
+            <select
+              className="input w-44"
+              value={newMappingTarget}
+              onChange={(e) => {
+                setNewMappingTarget(e.target.value);
+                if (e.target.value === NEW_COLUMN_TARGET && !newMappingColumnName) setNewMappingColumnName(newMappingKey);
+              }}
+            >
               <TargetOptions columns={sortedColumns} />
             </select>
+            {newMappingTarget === NEW_COLUMN_TARGET && (
+              <>
+                <span className="text-xs text-slate-500">שם העמודה:</span>
+                <input
+                  className="input w-40"
+                  placeholder="שם העמודה שיוצג ב-CRM"
+                  value={newMappingColumnName}
+                  onChange={(e) => setNewMappingColumnName(e.target.value)}
+                />
+                <select className="input w-28" value={newMappingColumnType} onChange={(e) => setNewMappingColumnType(e.target.value as LeadColumnType)}>
+                  <option value="text">טקסט</option>
+                  <option value="number">מספר</option>
+                </select>
+              </>
+            )}
             <button type="submit" className="btn btn-secondary text-xs">
               + הוסף
             </button>
@@ -268,15 +360,19 @@ export function CrmManagePanel({
 
           {webhook.suggestedKeys.length > 0 && (
             <div className="mt-2 space-y-1">
-              <p className="text-xs text-slate-500">שדות שהגיעו ועדיין לא מוגדרים:</p>
+              <p className="text-xs text-slate-500">שדות שהגיעו ועדיין לא מוגדרים — לחיצה ממלאת את הטופס למעלה כדי לתת שם לעמודה:</p>
               <div className="flex flex-wrap gap-2">
                 {webhook.suggestedKeys.map((key) => (
                   <button
                     key={key}
                     type="button"
                     className="rounded-full border border-slate-300 px-2 py-0.5 text-xs hover:border-slate-400 hover:bg-slate-50"
-                    title="הפוך לעמודה במקום להגדיר ידנית"
-                    onClick={() => runAction(() => createColumnFromWebhookKey(clientId, key))}
+                    title="למלא את הטופס למעלה עם השדה הזה"
+                    onClick={() => {
+                      setNewMappingKey(key);
+                      setNewMappingTarget(NEW_COLUMN_TARGET);
+                      setNewMappingColumnName(key);
+                    }}
                   >
                     {key} +עמודה
                   </button>
@@ -302,6 +398,7 @@ function TargetOptions({ columns }: { columns: LeadColumn[] }) {
           עמודה: {column.name}
         </option>
       ))}
+      <option value={NEW_COLUMN_TARGET}>+ עמודה חדשה...</option>
     </>
   );
 }
