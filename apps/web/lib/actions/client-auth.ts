@@ -7,6 +7,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { hashPassword, verifyPassword, generateRandomPassword } from "@/lib/auth/password";
 import { CLIENT_SESSION_COOKIE_NAME, SESSION_MAX_AGE_SECONDS, signClientSession } from "@/lib/auth/client-session";
 import { assertCrmAccess } from "@/lib/auth/assert-crm-access";
+import { sendTelegramAlert } from "@/lib/notifications/telegram";
 
 // Syntactically valid (but never-matching) salt:hash pair used to keep
 // verifyPassword's scrypt cost constant when a client has no real hash yet —
@@ -70,10 +71,38 @@ export async function regenerateClientPasswordAction(clientId: string): Promise<
   const supabase = supabaseAdmin();
   const newPassword = generateRandomPassword();
   const hash = await hashPassword(newPassword);
-  const { error } = await supabase.from("clients").update({ crm_password_hash: hash }).eq("id", clientId);
+  // Also clears any pending reset request — a fresh password IS the resolution.
+  const { error } = await supabase
+    .from("clients")
+    .update({ crm_password_hash: hash, password_reset_requested_at: null })
+    .eq("id", clientId);
   if (error) throw new Error(error.message);
   revalidatePath(`/clients/${clientId}/edit`);
   return newPassword;
+}
+
+/**
+ * Called from the (unauthenticated) client login page when someone has
+ * forgotten their password. There is nothing to recover — the hash is
+ * one-way — so this can't reset anything itself; it just flags the client
+ * for the agency to review on their edit page and regenerate manually,
+ * the same way a self-service reset would let anyone who finds the login
+ * URL take over the portal.
+ */
+export async function requestClientPasswordResetAction(clientId: string) {
+  const supabase = supabaseAdmin();
+  const { data: client } = await supabase.from("clients").select("name").eq("id", clientId).maybeSingle();
+  if (!client) redirect(`/client/${clientId}/login`);
+
+  const { error } = await supabase
+    .from("clients")
+    .update({ password_reset_requested_at: new Date().toISOString() })
+    .eq("id", clientId);
+  if (error) throw new Error(error.message);
+
+  await sendTelegramAlert(`🔑 ${client.name as string} ביקש/ה איפוס סיסמה לפורטל. אשר בעריכת הלקוח: /clients/${clientId}/edit`);
+
+  redirect(`/client/${clientId}/login?requested=1`);
 }
 
 export async function changeClientPasswordAction(clientId: string, formData: FormData) {

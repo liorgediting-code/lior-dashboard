@@ -5,6 +5,8 @@ import type { LeadStatus, LeadColumn, LeadColumnType, WebhookFieldMapping } from
 import { createLeadStatus, renameLeadStatus, deleteLeadStatus, setDefaultLeadStatus, reorderLeadStatus } from "@/lib/actions/lead-statuses";
 import { createLeadColumn, renameLeadColumn, deleteLeadColumn, reorderLeadColumn } from "@/lib/actions/lead-columns";
 import { createColumnFromWebhookKey, deleteWebhookFieldMapping, setWebhookFieldMapping } from "@/lib/actions/webhook-mappings";
+import { moveCrmColumn, toggleCrmColumnVisibility } from "@/lib/actions/crm-layout";
+import type { ResolvedColumn } from "@/lib/crm/column-layout";
 
 /** Sentinel select value meaning "create a new column for this field" — never a real column id (those are uuids). */
 const NEW_COLUMN_TARGET = "__new_column__";
@@ -59,11 +61,14 @@ export function CrmManagePanel({
   clientId,
   statuses,
   columns,
+  columnLayout,
   webhook,
 }: {
   clientId: string;
   statuses: LeadStatus[];
   columns: LeadColumn[];
+  /** Resolved order + visibility of every column shown in the CRM table, built-in and custom together. */
+  columnLayout: ResolvedColumn[];
   /** Omitted in the client portal — webhook plumbing is an agency concern. */
   webhook?: WebhookMappingProps;
 }) {
@@ -93,6 +98,32 @@ export function CrmManagePanel({
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "אירעה שגיאה");
     }
+  }
+
+  const [mappingSuccessMessage, setMappingSuccessMessage] = useState<string | null>(null);
+
+  // Same as runAction, but for the webhook-mapping actions specifically —
+  // those save silently otherwise, so routing a field to an EXISTING column
+  // (e.g. "phone") gives no sign anything happened beyond the select
+  // snapping back to its old-looking value.
+  async function runMappingAction(fn: () => Promise<void>, successText: string) {
+    setErrorMessage(null);
+    setMappingSuccessMessage(null);
+    try {
+      await fn();
+      setMappingSuccessMessage(successText);
+      setTimeout(() => setMappingSuccessMessage(null), 3000);
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "אירעה שגיאה");
+    }
+  }
+
+  function describeTarget(target: string, cols: LeadColumn[]): string {
+    if (target === "ignore") return "התעלם";
+    if (target === "name") return "שם";
+    if (target === "phone") return "טלפון";
+    if (target === "email") return "אימייל";
+    return `עמודה: ${cols.find((c) => c.id === target)?.name ?? target}`;
   }
 
   const sortedStatuses = [...statuses].sort((a, b) => a.sort_order - b.sort_order);
@@ -208,6 +239,38 @@ export function CrmManagePanel({
         </form>
       </div>
 
+      <div>
+        <h3 className="mb-1 text-sm font-medium text-slate-700">עמודות מוצגות בטבלת ה-CRM</h3>
+        <p className="mb-2 text-xs text-slate-500">
+          סדר והצגה של כל העמודות בטבלה — הקבועות והמותאמות אישית יחד. הסתרה לא מוחקת נתונים, רק לא מציגה את העמודה. שם וסטטוס תמיד מוצגים.
+        </p>
+        <div className="space-y-1">
+          {columnLayout.map((col) => (
+            <div key={col.key} className="flex items-center gap-2 text-sm">
+              <span className={`flex-1 ${col.hidden ? "text-slate-400 line-through" : ""}`}>
+                {col.label}
+                {!col.isBuiltIn && <span className="text-xs text-slate-400"> (מותאמת אישית)</span>}
+              </span>
+              <button type="button" className="btn btn-secondary text-xs" onClick={() => runAction(() => moveCrmColumn(clientId, col.key, "up"))}>
+                ↑
+              </button>
+              <button type="button" className="btn btn-secondary text-xs" onClick={() => runAction(() => moveCrmColumn(clientId, col.key, "down"))}>
+                ↓
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary text-xs disabled:cursor-not-allowed disabled:opacity-40"
+                disabled={col.lockedVisible}
+                title={col.lockedVisible ? "לא ניתן להסתיר עמודה זו" : undefined}
+                onClick={() => runAction(() => toggleCrmColumnVisibility(clientId, col.key))}
+              >
+                {col.hidden ? "הצג" : "הסתר"}
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {webhook && (
         <div>
           <h3 className="mb-1 text-sm font-medium text-slate-700">מבנה ה-Webhook</h3>
@@ -215,6 +278,7 @@ export function CrmManagePanel({
             לאן נכנס כל שדה שמגיע מטופס הלידים. שדות בשם name / full_name / phone / phone_number / email משויכים אוטומטית — כאן מוסיפים את
             שאר השאלות של הטופס. שדה שאין לו כלל לא הולך לאיבוד: הוא נשמר בשם המקורי שלו.
           </p>
+          {mappingSuccessMessage && <p className="mb-2 text-sm text-green-700">✓ {mappingSuccessMessage}</p>}
 
           <div className="space-y-1">
             {webhook.mappings.map((mapping) => (
@@ -235,7 +299,11 @@ export function CrmManagePanel({
                         return;
                       }
                       setRenamingMappingId(null);
-                      runAction(() => setWebhookFieldMapping(clientId, mapping.source_key, e.target.value));
+                      const target = e.target.value;
+                      runMappingAction(
+                        () => setWebhookFieldMapping(clientId, mapping.source_key, target),
+                        `"${mapping.source_key}" עודכן ל-${describeTarget(target, sortedColumns)}.`
+                      );
                     }}
                   >
                     <TargetOptions columns={sortedColumns} />
@@ -270,7 +338,10 @@ export function CrmManagePanel({
                           setErrorMessage("צריך למלא שם עמודה");
                           return;
                         }
-                        runAction(() => createColumnFromWebhookKey(clientId, mapping.source_key, name, renamingColumnType));
+                        runMappingAction(
+                          () => createColumnFromWebhookKey(clientId, mapping.source_key, name, renamingColumnType),
+                          `"${mapping.source_key}" נוסף לעמודה החדשה "${name}".`
+                        );
                         setRenamingMappingId(null);
                       }}
                     >
@@ -299,9 +370,15 @@ export function CrmManagePanel({
                   setErrorMessage("צריך למלא שם עמודה");
                   return;
                 }
-                runAction(() => createColumnFromWebhookKey(clientId, sourceKey, name, newMappingColumnType));
+                runMappingAction(
+                  () => createColumnFromWebhookKey(clientId, sourceKey, name, newMappingColumnType),
+                  `"${sourceKey}" נוסף לעמודה החדשה "${name}".`
+                );
               } else {
-                runAction(() => setWebhookFieldMapping(clientId, sourceKey, newMappingTarget));
+                runMappingAction(
+                  () => setWebhookFieldMapping(clientId, sourceKey, newMappingTarget),
+                  `"${sourceKey}" נשמר → ${describeTarget(newMappingTarget, sortedColumns)}.`
+                );
               }
               setNewMappingKey("");
               setNewMappingColumnName("");

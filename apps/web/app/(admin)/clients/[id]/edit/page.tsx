@@ -112,6 +112,7 @@ export default async function EditClientPage({ params }: { params: { id: string 
             hasPassword={Boolean(c.crm_password_hash)}
             hasWebhook={Boolean(c.webhook_secret)}
             webhookSecret={c.webhook_secret}
+            passwordResetRequestedAt={c.password_reset_requested_at}
           />
         </div>
 

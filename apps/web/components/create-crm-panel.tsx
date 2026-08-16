@@ -38,6 +38,7 @@ export function CreateCrmPanel({
   hasPassword,
   hasWebhook,
   webhookSecret,
+  passwordResetRequestedAt,
 }: {
   clientId: string;
   clientName: string;
@@ -46,6 +47,8 @@ export function CreateCrmPanel({
   hasWebhook: boolean;
   /** Stored in plaintext (unlike the password), so it can be shown again anytime — not just right after creation. */
   webhookSecret?: string | null;
+  /** Set when the client clicked "forgot password" on their login page. */
+  passwordResetRequestedAt?: string | null;
 }) {
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<{ password: string; webhookSecret: string } | null>(null);
@@ -76,6 +79,12 @@ export function CreateCrmPanel({
 
   return (
     <div className="space-y-3">
+      {passwordResetRequestedAt && (
+        <div className="rounded-lg bg-red-50 p-3 text-sm text-red-800">
+          🔔 הלקוח ביקש איפוס סיסמה ב-{new Date(passwordResetRequestedAt).toLocaleString("he-IL")}. לחיצה על "
+          {hasPassword ? "רענן CRM ללקוח" : "צור CRM ללקוח"}" למטה יוצרת סיסמה חדשה ומסמנת את הבקשה כטופלה.
+        </div>
+      )}
       <p className="text-sm text-slate-500">
         {hasPassword && hasWebhook
           ? "ל־CRM הזה כבר יש סיסמה וכתובת webhook פעילות. לחיצה כאן יוצרת חדשות ומבטלת את הישנות."
@@ -135,33 +144,49 @@ export function CreateCrmPanel({
         </div>
       )}
 
-      {!result && webhookUrl && (
+      {!result && (hasPassword || webhookUrl) && (
         <div className="space-y-3 rounded-lg bg-slate-50 p-3 text-sm">
-          <div>
-            <div className="mb-1 flex items-center justify-between">
-              <p className="font-medium">כתובת ה-Webhook להכנסת לידים:</p>
-              <button type="button" className="btn btn-secondary text-xs" onClick={() => copy(webhookUrl, "url")}>
-                {copied === "url" ? "הועתק ✓" : "העתק"}
-              </button>
+          {hasPassword && (
+            <div>
+              <div className="mb-1 flex items-center justify-between">
+                <p className="font-medium">קישור לפורטל הלקוח (הסיסמה עצמה לא ניתנת להצגה חוזרת — רק רענון):</p>
+                <button type="button" className="btn btn-secondary text-xs" onClick={() => copy(portalUrl, "portal-url")}>
+                  {copied === "portal-url" ? "הועתק ✓" : "העתק"}
+                </button>
+              </div>
+              <code className="break-all font-mono text-xs">{portalUrl}</code>
             </div>
-            <code className="break-all font-mono text-xs">{webhookUrl}</code>
-          </div>
+          )}
 
-          <div>
-            <div className="mb-1 flex items-center justify-between">
-              <p className="font-medium">פרומפט מוכן להעתקה ל-Claude Code / Make.com:</p>
-              <button
-                type="button"
-                className="btn btn-secondary text-xs"
-                onClick={() => copy(buildAutomationPrompt(clientName, webhookUrl), "prompt")}
-              >
-                {copied === "prompt" ? "הועתק ✓" : "העתק"}
-              </button>
-            </div>
-            <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded bg-white p-2 font-mono text-xs">
-              {buildAutomationPrompt(clientName, webhookUrl)}
-            </pre>
-          </div>
+          {webhookUrl && (
+            <>
+              <div>
+                <div className="mb-1 flex items-center justify-between">
+                  <p className="font-medium">כתובת ה-Webhook להכנסת לידים:</p>
+                  <button type="button" className="btn btn-secondary text-xs" onClick={() => copy(webhookUrl, "url")}>
+                    {copied === "url" ? "הועתק ✓" : "העתק"}
+                  </button>
+                </div>
+                <code className="break-all font-mono text-xs">{webhookUrl}</code>
+              </div>
+
+              <div>
+                <div className="mb-1 flex items-center justify-between">
+                  <p className="font-medium">פרומפט מוכן להעתקה ל-Claude Code / Make.com:</p>
+                  <button
+                    type="button"
+                    className="btn btn-secondary text-xs"
+                    onClick={() => copy(buildAutomationPrompt(clientName, webhookUrl), "prompt")}
+                  >
+                    {copied === "prompt" ? "הועתק ✓" : "העתק"}
+                  </button>
+                </div>
+                <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded bg-white p-2 font-mono text-xs">
+                  {buildAutomationPrompt(clientName, webhookUrl)}
+                </pre>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

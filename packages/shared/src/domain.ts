@@ -43,7 +43,17 @@ export type Client = {
   webhook_secret: string | null;
   /** Google Drive folder holding this client's ad videos (phase 20b). */
   drive_folder_id: string | null;
+  /** Set when the client clicks "forgot password" on their login page; cleared once the agency regenerates it (phase 21). */
+  password_reset_requested_at: string | null;
+  /** Order + visibility of the CRM table's columns, built-in and custom together. Null = default order, nothing hidden (phase 21b). */
+  crm_column_layout: CrmColumnLayoutEntry[] | null;
   created_at: string;
+};
+
+/** `key` is one of BUILT_IN_CRM_COLUMN_KEYS or a lead_columns.id — see lib/crm/column-layout.ts. */
+export type CrmColumnLayoutEntry = {
+  key: string;
+  hidden: boolean;
 };
 
 export type DriveLink = {

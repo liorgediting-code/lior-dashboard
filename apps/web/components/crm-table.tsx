@@ -4,6 +4,7 @@ import { Fragment, useMemo, useState } from "react";
 import type { Lead, LeadStatus, LeadColumn, LeadActivity } from "@dashboard-lior/shared";
 import { updateLeadField, updateLeadStatus, deleteLead, createLeadFromForm } from "@/lib/actions/leads";
 import { LeadActivityPanel } from "@/components/lead-activity-panel";
+import type { ResolvedColumn } from "@/lib/crm/column-layout";
 
 type SortOption = "created_desc" | "follow_up_asc";
 
@@ -67,6 +68,7 @@ export function CrmTable({
   leads,
   statuses,
   columns,
+  columnLayout,
   sourceLabels = {},
   activitiesByLeadId = {},
 }: {
@@ -74,11 +76,14 @@ export function CrmTable({
   leads: Lead[];
   statuses: LeadStatus[];
   columns: LeadColumn[];
+  /** Resolved order + visibility of built-in and custom columns together — see lib/crm/column-layout.ts. */
+  columnLayout: ResolvedColumn[];
   sourceLabels?: Record<string, string>;
   activitiesByLeadId?: Record<string, LeadActivity[]>;
 }) {
   const sortedStatuses = [...statuses].sort((a, b) => a.sort_order - b.sort_order);
-  const sortedColumns = [...columns].sort((a, b) => a.sort_order - b.sort_order);
+  const columnById = new Map(columns.map((col) => [col.id, col]));
+  const visibleColumns = columnLayout.filter((col) => !col.hidden);
   const todayIso = new Date().toISOString().slice(0, 10);
 
   const [expandedLeadId, setExpandedLeadId] = useState<string | null>(null);
@@ -142,16 +147,9 @@ export function CrmTable({
       <table className="w-full text-sm">
         <thead>
           <tr className="text-right text-slate-500">
-            <th className="p-2 font-normal">שם</th>
-            <th className="p-2 font-normal">טלפון</th>
-            <th className="p-2 font-normal">אימייל</th>
-            <th className="p-2 font-normal">סטטוס</th>
-            <th className="p-2 font-normal">מקור</th>
-            <th className="p-2 font-normal">שווי עסקה</th>
-            <th className="p-2 font-normal">מעקב הבא</th>
-            {sortedColumns.map((col) => (
-              <th key={col.id} className="p-2 font-normal">
-                {col.name}
+            {visibleColumns.map((col) => (
+              <th key={col.key} className="p-2 font-normal">
+                {col.label}
               </th>
             ))}
             <th className="p-2 font-normal" />
@@ -161,7 +159,7 @@ export function CrmTable({
         <tbody className="divide-y divide-slate-100">
           {visibleLeads.length === 0 && (
             <tr>
-              <td colSpan={9 + sortedColumns.length} className="p-4 text-center text-slate-500">
+              <td colSpan={2 + visibleColumns.length} className="p-4 text-center text-slate-500">
                 אין לידים תואמים לסינון.
               </td>
             </tr>
@@ -173,54 +171,82 @@ export function CrmTable({
             return (
               <Fragment key={lead.id}>
               <tr className={isOverdue ? "bg-red-50" : undefined}>
-                <td className="p-1">
-                  <EditableCell value={lead.name ?? ""} onSave={(v) => updateLeadField(lead.id, clientId, "name", v)} />
-                </td>
-                <td className="p-1">
-                  <EditableCell value={lead.phone ?? ""} onSave={(v) => updateLeadField(lead.id, clientId, "phone", v)} />
-                </td>
-                <td className="p-1">
-                  <EditableCell value={lead.email ?? ""} onSave={(v) => updateLeadField(lead.id, clientId, "email", v)} />
-                </td>
-                <td className="p-1">
-                  <select
-                    className={`badge ${KIND_BADGE_CLASS[status?.kind ?? "open"]}`}
-                    value={lead.status_id}
-                    onChange={(e) => updateLeadStatus(lead.id, clientId, e.target.value)}
-                  >
-                    {sortedStatuses.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.label}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td className="p-1 text-xs text-slate-500" title={lead.source_ad_id ? sourceLabels[lead.source_ad_id] : undefined}>
-                  {lead.source_ad_id ? (sourceLabels[lead.source_ad_id] ?? "מודעה לא מזוהה") : "ידני"}
-                </td>
-                <td className="p-1">
-                  <EditableCell
-                    value={String(lead.deal_value ?? "")}
-                    type="number"
-                    onSave={(v) => updateLeadField(lead.id, clientId, "deal_value", v)}
-                  />
-                </td>
-                <td className={`p-1 ${isOverdue ? "font-medium text-red-700" : ""}`}>
-                  <EditableCell
-                    value={lead.follow_up_at ?? ""}
-                    type="date"
-                    onSave={(v) => updateLeadField(lead.id, clientId, "follow_up_at", v)}
-                  />
-                </td>
-                {sortedColumns.map((col) => (
-                  <td key={col.id} className="p-1">
-                    <EditableCell
-                      value={String(lead.custom_fields[col.id] ?? "")}
-                      type={col.type === "number" ? "number" : "text"}
-                      onSave={(v) => updateLeadField(lead.id, clientId, `custom:${col.id}`, v)}
-                    />
-                  </td>
-                ))}
+                {visibleColumns.map((col) => {
+                  switch (col.key) {
+                    case "name":
+                      return (
+                        <td key={col.key} className="p-1">
+                          <EditableCell value={lead.name ?? ""} onSave={(v) => updateLeadField(lead.id, clientId, "name", v)} />
+                        </td>
+                      );
+                    case "phone":
+                      return (
+                        <td key={col.key} className="p-1">
+                          <EditableCell value={lead.phone ?? ""} onSave={(v) => updateLeadField(lead.id, clientId, "phone", v)} />
+                        </td>
+                      );
+                    case "email":
+                      return (
+                        <td key={col.key} className="p-1">
+                          <EditableCell value={lead.email ?? ""} onSave={(v) => updateLeadField(lead.id, clientId, "email", v)} />
+                        </td>
+                      );
+                    case "status":
+                      return (
+                        <td key={col.key} className="p-1">
+                          <select
+                            className={`badge ${KIND_BADGE_CLASS[status?.kind ?? "open"]}`}
+                            value={lead.status_id}
+                            onChange={(e) => updateLeadStatus(lead.id, clientId, e.target.value)}
+                          >
+                            {sortedStatuses.map((s) => (
+                              <option key={s.id} value={s.id}>
+                                {s.label}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                      );
+                    case "source":
+                      return (
+                        <td key={col.key} className="p-1 text-xs text-slate-500" title={lead.source_ad_id ? sourceLabels[lead.source_ad_id] : undefined}>
+                          {lead.source_ad_id ? (sourceLabels[lead.source_ad_id] ?? "מודעה לא מזוהה") : "ידני"}
+                        </td>
+                      );
+                    case "deal_value":
+                      return (
+                        <td key={col.key} className="p-1">
+                          <EditableCell
+                            value={String(lead.deal_value ?? "")}
+                            type="number"
+                            onSave={(v) => updateLeadField(lead.id, clientId, "deal_value", v)}
+                          />
+                        </td>
+                      );
+                    case "follow_up":
+                      return (
+                        <td key={col.key} className={`p-1 ${isOverdue ? "font-medium text-red-700" : ""}`}>
+                          <EditableCell
+                            value={lead.follow_up_at ?? ""}
+                            type="date"
+                            onSave={(v) => updateLeadField(lead.id, clientId, "follow_up_at", v)}
+                          />
+                        </td>
+                      );
+                    default: {
+                      const customColumn = columnById.get(col.key);
+                      return (
+                        <td key={col.key} className="p-1">
+                          <EditableCell
+                            value={String(lead.custom_fields[col.key] ?? "")}
+                            type={customColumn?.type === "number" ? "number" : "text"}
+                            onSave={(v) => updateLeadField(lead.id, clientId, `custom:${col.key}`, v)}
+                          />
+                        </td>
+                      );
+                    }
+                  }
+                })}
                 <td className="p-1">
                   <button
                     type="button"
@@ -238,7 +264,7 @@ export function CrmTable({
               </tr>
               {isExpanded && (
                 <tr>
-                  <td colSpan={9 + sortedColumns.length} className="p-2">
+                  <td colSpan={2 + visibleColumns.length} className="p-2">
                     <LeadActivityPanel leadId={lead.id} clientId={clientId} activities={activitiesByLeadId[lead.id] ?? []} />
                   </td>
                 </tr>

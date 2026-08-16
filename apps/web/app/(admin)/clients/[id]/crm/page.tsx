@@ -7,14 +7,15 @@ import { CrmDashboardStats } from "@/components/crm-dashboard-stats";
 import { resolveLeadSources } from "@/lib/crm/lead-sources";
 import { fetchActivitiesByLead } from "@/lib/crm/fetch-activities";
 import { suggestUnmappedKeys } from "@/lib/crm/webhook-mapping";
-import type { Lead, LeadStatus, LeadColumn, WebhookFieldMapping } from "@dashboard-lior/shared";
+import { resolveColumnLayout } from "@/lib/crm/column-layout";
+import type { Lead, LeadStatus, LeadColumn, WebhookFieldMapping, CrmColumnLayoutEntry } from "@dashboard-lior/shared";
 
 export const dynamic = "force-dynamic";
 
 export default async function ClientCrmPage({ params }: { params: { id: string } }) {
   const supabase = supabaseAdmin();
   const [{ data: client }, { data: leads }, { data: statuses }, { data: columns }, { data: mappings }] = await Promise.all([
-    supabase.from("clients").select("id, name").eq("id", params.id).single(),
+    supabase.from("clients").select("id, name, crm_column_layout").eq("id", params.id).single(),
     supabase.from("leads").select("*").eq("client_id", params.id).order("created_at", { ascending: false }),
     supabase.from("lead_statuses").select("*").eq("client_id", params.id),
     supabase.from("lead_columns").select("*").eq("client_id", params.id),
@@ -24,6 +25,7 @@ export default async function ClientCrmPage({ params }: { params: { id: string }
   const leadRows = (leads ?? []) as Lead[];
   const columnRows = (columns ?? []) as LeadColumn[];
   const mappingRows = (mappings ?? []) as WebhookFieldMapping[];
+  const columnLayout = resolveColumnLayout(client.crm_column_layout as CrmColumnLayoutEntry[] | null, columnRows);
   const [sourceLabels, activitiesByLeadId] = await Promise.all([
     resolveLeadSources(supabase, leadRows),
     fetchActivitiesByLead(supabase, params.id),
@@ -38,6 +40,7 @@ export default async function ClientCrmPage({ params }: { params: { id: string }
         clientId={params.id}
         statuses={(statuses ?? []) as LeadStatus[]}
         columns={columnRows}
+        columnLayout={columnLayout}
         webhook={{
           mappings: mappingRows,
           suggestedKeys: suggestUnmappedKeys(
@@ -52,6 +55,7 @@ export default async function ClientCrmPage({ params }: { params: { id: string }
         leads={leadRows}
         statuses={(statuses ?? []) as LeadStatus[]}
         columns={columnRows}
+        columnLayout={columnLayout}
         sourceLabels={sourceLabels}
         activitiesByLeadId={activitiesByLeadId}
       />

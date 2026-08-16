@@ -9,7 +9,8 @@ import { PortalTabs } from "@/components/portal-tabs";
 import { resolveLeadSources } from "@/lib/crm/lead-sources";
 import { fetchActivitiesByLead } from "@/lib/crm/fetch-activities";
 import { getPortalTabsData } from "@/lib/crm/portal-tabs-data";
-import type { Lead, LeadStatus, LeadColumn } from "@dashboard-lior/shared";
+import { resolveColumnLayout } from "@/lib/crm/column-layout";
+import type { Lead, LeadStatus, LeadColumn, CrmColumnLayoutEntry } from "@dashboard-lior/shared";
 
 export const dynamic = "force-dynamic";
 
@@ -24,13 +25,15 @@ export default async function ClientPortalCrmPage({
 
   const supabase = supabaseAdmin();
   const [{ data: client }, { data: leads }, { data: statuses }, { data: columns }] = await Promise.all([
-    supabase.from("clients").select("id, name").eq("id", params.clientId).single(),
+    supabase.from("clients").select("id, name, crm_column_layout").eq("id", params.clientId).single(),
     supabase.from("leads").select("*").eq("client_id", params.clientId).order("created_at", { ascending: false }),
     supabase.from("lead_statuses").select("*").eq("client_id", params.clientId),
     supabase.from("lead_columns").select("*").eq("client_id", params.clientId),
   ]);
   if (!client) notFound();
   const leadRows = (leads ?? []) as Lead[];
+  const columnRows = (columns ?? []) as LeadColumn[];
+  const columnLayout = resolveColumnLayout(client.crm_column_layout as CrmColumnLayoutEntry[] | null, columnRows);
   const [sourceLabels, activitiesByLeadId, tabsData] = await Promise.all([
     resolveLeadSources(supabase, leadRows),
     fetchActivitiesByLead(supabase, params.clientId),
@@ -47,12 +50,18 @@ export default async function ClientPortalCrmPage({
       />
       <PortalTabs clientId={params.clientId} active="crm" {...tabsData} />
       <CrmDashboardStats leads={leadRows} statuses={(statuses ?? []) as LeadStatus[]} />
-      <CrmManagePanel clientId={params.clientId} statuses={(statuses ?? []) as LeadStatus[]} columns={(columns ?? []) as LeadColumn[]} />
+      <CrmManagePanel
+        clientId={params.clientId}
+        statuses={(statuses ?? []) as LeadStatus[]}
+        columns={columnRows}
+        columnLayout={columnLayout}
+      />
       <CrmTable
         clientId={params.clientId}
         leads={leadRows}
         statuses={(statuses ?? []) as LeadStatus[]}
-        columns={(columns ?? []) as LeadColumn[]}
+        columns={columnRows}
+        columnLayout={columnLayout}
         sourceLabels={sourceLabels}
         activitiesByLeadId={activitiesByLeadId}
       />
