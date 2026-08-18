@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { Lead, LeadStatus, LeadColumn, LeadActivity } from "@dashboard-lior/shared";
 import { updateLeadField, updateLeadStatus, deleteLead, createLeadFromForm } from "@/lib/actions/leads";
 import { LeadActivityPanel } from "@/components/lead-activity-panel";
@@ -63,6 +63,118 @@ function EditableCell({
   );
 }
 
+function LeadProfilePanel({
+  lead,
+  clientId,
+  statuses,
+  columns,
+  columnById,
+  sourceLabel,
+  activities,
+  onClose,
+}: {
+  lead: Lead;
+  clientId: string;
+  statuses: LeadStatus[];
+  columns: LeadColumn[];
+  columnById: Map<string, LeadColumn>;
+  sourceLabel: string;
+  activities: LeadActivity[];
+  onClose: () => void;
+}) {
+  const sortedStatuses = [...statuses].sort((a, b) => a.sort_order - b.sort_order);
+  const status = sortedStatuses.find((s) => s.id === lead.status_id);
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <div className="absolute inset-0 bg-slate-900/30" onClick={onClose} />
+      <div className="animate-in relative flex h-full w-full max-w-md flex-col overflow-y-auto bg-white p-4 shadow-xl">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-bold">{lead.name || "ליד ללא שם"}</h2>
+          <button type="button" className="btn btn-secondary text-xs" onClick={onClose}>
+            ✕ סגור
+          </button>
+        </div>
+
+        <div className="mb-4 space-y-3 rounded-lg border border-slate-200 p-3">
+          <div>
+            <p className="label">שם</p>
+            <EditableCell value={lead.name ?? ""} onSave={(v) => updateLeadField(lead.id, clientId, "name", v)} />
+          </div>
+          <div>
+            <p className="label">טלפון</p>
+            <EditableCell value={lead.phone ?? ""} onSave={(v) => updateLeadField(lead.id, clientId, "phone", v)} />
+          </div>
+          <div>
+            <p className="label">אימייל</p>
+            <EditableCell value={lead.email ?? ""} onSave={(v) => updateLeadField(lead.id, clientId, "email", v)} />
+          </div>
+          <div>
+            <p className="label">סטטוס</p>
+            <select
+              className={`badge ${KIND_BADGE_CLASS[status?.kind ?? "open"]}`}
+              value={lead.status_id}
+              onChange={(e) => updateLeadStatus(lead.id, clientId, e.target.value)}
+            >
+              {sortedStatuses.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <p className="label">מקור</p>
+            <p className="text-sm text-slate-700">{sourceLabel}</p>
+          </div>
+          <div>
+            <p className="label">שווי עסקה</p>
+            <EditableCell
+              value={String(lead.deal_value ?? "")}
+              type="number"
+              onSave={(v) => updateLeadField(lead.id, clientId, "deal_value", v)}
+            />
+          </div>
+          <div>
+            <p className="label">תאריך מעקב</p>
+            <EditableCell
+              value={lead.follow_up_at ?? ""}
+              type="date"
+              onSave={(v) => updateLeadField(lead.id, clientId, "follow_up_at", v)}
+            />
+          </div>
+          {columns.map((col) => (
+            <div key={col.id}>
+              <p className="label">{col.name}</p>
+              <EditableCell
+                value={String(lead.custom_fields[col.id] ?? "")}
+                type={col.type === "number" ? "number" : "text"}
+                onSave={(v) => updateLeadField(lead.id, clientId, `custom:${col.id}`, v)}
+              />
+            </div>
+          ))}
+          <p className="text-xs text-slate-400">
+            נוצר ב־{new Date(lead.created_at).toLocaleString("he-IL", { dateStyle: "short", timeStyle: "short" })}
+          </p>
+        </div>
+
+        <LeadActivityPanel leadId={lead.id} clientId={clientId} activities={activities} />
+
+        <button
+          type="button"
+          className="btn btn-danger mt-4 text-xs"
+          onClick={() => {
+            deleteLead(lead.id, clientId);
+            onClose();
+          }}
+        >
+          ✕ מחיקת ליד
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function CrmTable({
   clientId,
   leads,
@@ -86,7 +198,7 @@ export function CrmTable({
   const visibleColumns = columnLayout.filter((col) => !col.hidden);
   const todayIso = new Date().toISOString().slice(0, 10);
 
-  const [expandedLeadId, setExpandedLeadId] = useState<string | null>(null);
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
@@ -114,6 +226,8 @@ export function CrmTable({
     }
     return rows;
   }, [leads, search, statusFilter, sourceFilter, sortBy, sourceLabels]);
+
+  const selectedLead = selectedLeadId ? (leads.find((l) => l.id === selectedLeadId) ?? null) : null;
 
   return (
     <div>
@@ -153,13 +267,12 @@ export function CrmTable({
               </th>
             ))}
             <th className="p-2 font-normal" />
-            <th className="p-2 font-normal" />
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
           {visibleLeads.length === 0 && (
             <tr>
-              <td colSpan={2 + visibleColumns.length} className="p-4 text-center text-slate-500">
+              <td colSpan={1 + visibleColumns.length} className="p-4 text-center text-slate-500">
                 אין לידים תואמים לסינון.
               </td>
             </tr>
@@ -167,33 +280,35 @@ export function CrmTable({
           {visibleLeads.map((lead) => {
             const status = sortedStatuses.find((s) => s.id === lead.status_id);
             const isOverdue = status?.kind === "open" && !!lead.follow_up_at && lead.follow_up_at < todayIso;
-            const isExpanded = expandedLeadId === lead.id;
             return (
-              <Fragment key={lead.id}>
-              <tr className={isOverdue ? "bg-red-50" : undefined}>
+              <tr
+                key={lead.id}
+                className={`cursor-pointer hover:bg-slate-50 ${isOverdue ? "bg-red-50" : ""}`}
+                onClick={() => setSelectedLeadId(lead.id)}
+              >
                 {visibleColumns.map((col) => {
                   switch (col.key) {
                     case "name":
                       return (
-                        <td key={col.key} className="p-1">
+                        <td key={col.key} className="p-1" onClick={(e) => e.stopPropagation()}>
                           <EditableCell value={lead.name ?? ""} onSave={(v) => updateLeadField(lead.id, clientId, "name", v)} />
                         </td>
                       );
                     case "phone":
                       return (
-                        <td key={col.key} className="p-1">
+                        <td key={col.key} className="p-1" onClick={(e) => e.stopPropagation()}>
                           <EditableCell value={lead.phone ?? ""} onSave={(v) => updateLeadField(lead.id, clientId, "phone", v)} />
                         </td>
                       );
                     case "email":
                       return (
-                        <td key={col.key} className="p-1">
+                        <td key={col.key} className="p-1" onClick={(e) => e.stopPropagation()}>
                           <EditableCell value={lead.email ?? ""} onSave={(v) => updateLeadField(lead.id, clientId, "email", v)} />
                         </td>
                       );
                     case "status":
                       return (
-                        <td key={col.key} className="p-1">
+                        <td key={col.key} className="p-1" onClick={(e) => e.stopPropagation()}>
                           <select
                             className={`badge ${KIND_BADGE_CLASS[status?.kind ?? "open"]}`}
                             value={lead.status_id}
@@ -215,7 +330,7 @@ export function CrmTable({
                       );
                     case "deal_value":
                       return (
-                        <td key={col.key} className="p-1">
+                        <td key={col.key} className="p-1" onClick={(e) => e.stopPropagation()}>
                           <EditableCell
                             value={String(lead.deal_value ?? "")}
                             type="number"
@@ -225,7 +340,7 @@ export function CrmTable({
                       );
                     case "follow_up":
                       return (
-                        <td key={col.key} className={`p-1 ${isOverdue ? "font-medium text-red-700" : ""}`}>
+                        <td key={col.key} className={`p-1 ${isOverdue ? "font-medium text-red-700" : ""}`} onClick={(e) => e.stopPropagation()}>
                           <EditableCell
                             value={lead.follow_up_at ?? ""}
                             type="date"
@@ -236,7 +351,7 @@ export function CrmTable({
                     default: {
                       const customColumn = columnById.get(col.key);
                       return (
-                        <td key={col.key} className="p-1">
+                        <td key={col.key} className="p-1" onClick={(e) => e.stopPropagation()}>
                           <EditableCell
                             value={String(lead.custom_fields[col.key] ?? "")}
                             type={customColumn?.type === "number" ? "number" : "text"}
@@ -247,29 +362,12 @@ export function CrmTable({
                     }
                   }
                 })}
-                <td className="p-1">
-                  <button
-                    type="button"
-                    className="btn btn-secondary text-xs"
-                    onClick={() => setExpandedLeadId(isExpanded ? null : lead.id)}
-                  >
-                    {isExpanded ? "סגור" : "פעילות"}
-                  </button>
-                </td>
-                <td className="p-1">
+                <td className="p-1" onClick={(e) => e.stopPropagation()}>
                   <button type="button" className="btn btn-secondary text-xs" onClick={() => deleteLead(lead.id, clientId)}>
                     ✕
                   </button>
                 </td>
               </tr>
-              {isExpanded && (
-                <tr>
-                  <td colSpan={2 + visibleColumns.length} className="p-2">
-                    <LeadActivityPanel leadId={lead.id} clientId={clientId} activities={activitiesByLeadId[lead.id] ?? []} />
-                  </td>
-                </tr>
-              )}
-              </Fragment>
             );
           })}
         </tbody>
@@ -284,6 +382,18 @@ export function CrmTable({
         </button>
       </form>
       </div>
+      {selectedLead && (
+        <LeadProfilePanel
+          lead={selectedLead}
+          clientId={clientId}
+          statuses={statuses}
+          columns={columns}
+          columnById={columnById}
+          sourceLabel={selectedLead.source_ad_id ? (sourceLabels[selectedLead.source_ad_id] ?? "מודעה לא מזוהה") : "ידני"}
+          activities={activitiesByLeadId[selectedLead.id] ?? []}
+          onClose={() => setSelectedLeadId(null)}
+        />
+      )}
     </div>
   );
 }
