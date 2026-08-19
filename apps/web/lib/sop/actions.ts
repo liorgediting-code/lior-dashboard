@@ -9,7 +9,14 @@ import { getStageDefinition, nextStage } from "./stage-machine";
 
 const MAGIC_LINK_TTL_HOURS = 72;
 
-export async function advanceStage(clientId: string) {
+/**
+ * `actor` is a parameter, not a `getCurrentActor()` call, for the same reason
+ * approveGate takes one: some advances are triggered by the CLIENT, not the
+ * agency (filling the stage-0 intake form via its public token), and those
+ * have no agency session to read an actor from. Defaults to the agency for
+ * every internal call site.
+ */
+export async function advanceStage(clientId: string, actor: string = getCurrentActor()) {
   const supabase = supabaseAdmin();
   const { data: client, error } = await supabase
     .from("clients")
@@ -30,7 +37,7 @@ export async function advanceStage(clientId: string) {
     event_type: "stage_advanced",
     from_stage: from,
     to_stage: to,
-    actor: getCurrentActor(),
+    actor,
   });
 
   // ensure a pending gate row exists once we enter a gated stage

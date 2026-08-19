@@ -7,12 +7,15 @@ import { getStageDefinition } from "@/lib/sop/stage-machine";
 import { advanceStageFromForm, approveGateFromForm, requestGateApprovalFromForm } from "@/lib/sop/actions";
 import { ClientNotesPanel } from "@/components/client-notes-panel";
 import { ClientQuestionnaireCard } from "@/components/client-questionnaire-card";
+import { ClientFormsCard } from "@/components/client-forms-card";
 import { formatWeekRange, resolveTemplateForClient, weekStartIso } from "@/lib/crm/questionnaire";
 import type {
   Client,
   BaselineSnapshot,
   SopGate,
   ClientCurrentMetrics,
+  FormSubmission,
+  FormTemplate,
   DriveLink,
   Note,
   QuestionnaireResponse,
@@ -25,7 +28,7 @@ export default async function ClientProfilePage({
   searchParams,
 }: {
   params: { id: string };
-  searchParams: { magicLink?: string; gate?: string };
+  searchParams: { magicLink?: string; gate?: string; formLink?: string };
 }) {
   const supabase = supabaseAdmin();
   const weekStart = weekStartIso();
@@ -38,6 +41,8 @@ export default async function ClientProfilePage({
     { data: noteRows },
     template,
     { data: questionnaireRow },
+    { data: formTemplateRows },
+    { data: formSubmissionRows },
   ] = await Promise.all([
     supabase.from("clients").select("*").eq("id", params.id).single(),
     supabase.from("baseline_snapshots").select("*").eq("client_id", params.id).maybeSingle(),
@@ -52,6 +57,8 @@ export default async function ClientProfilePage({
       .limit(30),
     resolveTemplateForClient(supabase, params.id),
     supabase.from("questionnaire_responses").select("*").eq("client_id", params.id).eq("week_start", weekStart).maybeSingle(),
+    supabase.from("form_templates").select("*").order("created_at"),
+    supabase.from("form_submissions").select("*").eq("client_id", params.id).order("created_at"),
   ]);
 
   if (!client) notFound();
@@ -62,6 +69,9 @@ export default async function ClientProfilePage({
   const current = (currentMetricsRows?.[0] as ClientCurrentMetrics | undefined) ?? null;
   const notes = (noteRows ?? []) as Note[];
   const questionnaireResponse = (questionnaireRow as QuestionnaireResponse | null) ?? null;
+  const formTemplates = (formTemplateRows ?? []) as FormTemplate[];
+  const formSubmissions = (formSubmissionRows ?? []) as FormSubmission[];
+  const baseUrl = process.env.APP_BASE_URL ?? "http://localhost:3000";
 
   const stageDef = getStageDefinition(c.sop_stage);
   const isFinalStage = c.sop_stage === 8;
@@ -94,6 +104,13 @@ export default async function ClientProfilePage({
         <div className="card mb-6 border-amber-300 bg-amber-50">
           <p className="mb-1 font-medium">קישור אישור ל-Gate {searchParams.gate} נוצר:</p>
           <code className="break-all text-sm">{searchParams.magicLink}</code>
+        </div>
+      )}
+
+      {searchParams.formLink && (
+        <div className="card mb-6 border-amber-300 bg-amber-50">
+          <p className="mb-1 font-medium">קישור לטופס נוצר — שלח אותו ללקוח:</p>
+          <code className="break-all text-sm">{searchParams.formLink}</code>
         </div>
       )}
 
@@ -184,6 +201,15 @@ export default async function ClientProfilePage({
               <p className="mt-3 text-xs text-slate-400">
                 עלות לעסקה = עלות ליד ממוצעת ÷ אחוז סגירה. max_CPL נוכחי: {formatCurrency(c.max_cpl)}
               </p>
+            </div>
+
+            <div className="xl:col-span-2">
+              <ClientFormsCard
+                clientId={c.id}
+                templates={formTemplates}
+                submissions={formSubmissions}
+                baseUrl={baseUrl}
+              />
             </div>
 
             <div className="xl:col-span-2">

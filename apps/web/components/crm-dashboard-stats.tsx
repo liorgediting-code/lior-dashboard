@@ -23,18 +23,18 @@ export function CrmDashboardStats({ leads, statuses }: { leads: Lead[]; statuses
   ];
 
   return (
-    <div className="mb-6 space-y-3">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+    <div className="mb-4 space-y-3">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         {cards.map((c) => (
           <div key={c.label} className="card">
-            <p className="text-xs text-slate-500">{c.label}</p>
+            <p className="text-sm text-slate-500">{c.label}</p>
             <p className="text-2xl font-bold">{c.value}</p>
           </div>
         ))}
       </div>
       {overdueFollowUps > 0 && (
-        <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
-          יש {overdueFollowUps} לידים עם מעקב שעבר תאריך ועדיין לא טופלו — מסומנים באדום בטבלה למטה.
+        <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          יש {overdueFollowUps} לידים עם מעקב שעבר תאריך ועדיין לא טופלו — סנן לפי &quot;לפי תאריך מעקב&quot; כדי לטפל בהם.
         </div>
       )}
     </div>

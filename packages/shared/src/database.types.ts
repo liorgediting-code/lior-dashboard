@@ -47,6 +47,8 @@ import type {
   IgMedia,
   ClientVideo,
   VideoComment,
+  FormTemplate,
+  FormSubmission,
 } from "./domain";
 
 // supabase-js's GenericTable/GenericView require a `Relationships` array
@@ -215,6 +217,27 @@ export type Database = {
             columns: ["client_id"];
             isOneToOne: false;
             referencedRelation: "clients";
+            referencedColumns: ["id"];
+          },
+        ]
+      >;
+      // Phase 22 — agency-authored forms sent to clients by link.
+      form_templates: Table<FormTemplate>;
+      form_submissions: Table<
+        FormSubmission,
+        [
+          {
+            foreignKeyName: "form_submissions_client_id_fkey";
+            columns: ["client_id"];
+            isOneToOne: false;
+            referencedRelation: "clients";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "form_submissions_template_id_fkey";
+            columns: ["template_id"];
+            isOneToOne: false;
+            referencedRelation: "form_templates";
             referencedColumns: ["id"];
           },
         ]

@@ -551,3 +551,36 @@ export type VideoComment = {
   resolved_at: string | null;
   created_at: string;
 };
+
+// --- Phase 22: agency-authored forms sent to clients by link ---
+
+/** The slug of the built-in intake form, whose submission advances SOP stage 0 → 1. */
+export const INTAKE_FORM_SLUG = "intake";
+
+/**
+ * A form the agency built. Reuses QuestionnaireQuestion so the same editor and
+ * the same field renderer serve both these and the weekly questionnaire.
+ */
+export type FormTemplate = {
+  id: string;
+  name: string;
+  /** Non-null only for built-in forms the app reasons about by name — currently just INTAKE_FORM_SLUG. */
+  slug: string | null;
+  questions: QuestionnaireQuestion[];
+  created_at: string;
+  updated_at: string;
+};
+
+/** One form sent to one client. At most one row per (client, template). */
+export type FormSubmission = {
+  id: string;
+  client_id: string;
+  template_id: string;
+  /** The secret in the public /form/[token] URL. Authorizes the submit on its own. */
+  token: string;
+  /** Keyed by the template's question ids. */
+  answers: Record<string, string | number | null>;
+  /** Null = link issued, client hasn't filled it in yet. No expiry by design. */
+  submitted_at: string | null;
+  created_at: string;
+};

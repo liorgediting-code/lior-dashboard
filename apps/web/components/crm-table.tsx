@@ -6,7 +6,7 @@ import { updateLeadField, updateLeadStatus, deleteLead, createLeadFromForm } fro
 import { LeadActivityPanel } from "@/components/lead-activity-panel";
 import type { ResolvedColumn } from "@/lib/crm/column-layout";
 
-type SortOption = "created_desc" | "follow_up_asc";
+type SortOption = "created_desc" | "follow_up_asc" | "deal_value_desc";
 
 const KIND_BADGE_CLASS: Record<LeadStatus["kind"], string> = {
   open: "badge-insufficient",
@@ -18,10 +18,12 @@ function EditableCell({
   value,
   onSave,
   type = "text",
+  placeholder,
 }: {
   value: string;
   onSave: (value: string) => void;
   type?: "text" | "number" | "date";
+  placeholder?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -36,7 +38,7 @@ function EditableCell({
           setEditing(true);
         }}
       >
-        {value || "—"}
+        {value || <span className="text-slate-300">{placeholder ?? "—"}</span>}
       </button>
     );
   }
@@ -209,10 +211,17 @@ export function CrmTable({
     return [...labels].sort();
   }, [sourceLabels]);
 
+  /** Derived from this client's own lead_statuses rows — statuses are per-client and configurable. */
+  const openStatusIds = useMemo(
+    () => new Set(statuses.filter((s) => s.kind === "open").map((s) => s.id)),
+    [statuses]
+  );
+
   const visibleLeads = useMemo(() => {
     const query = search.trim().toLowerCase();
     let rows = leads.filter((lead) => {
-      if (statusFilter !== "all" && lead.status_id !== statusFilter) return false;
+      if (statusFilter === "open" && !openStatusIds.has(lead.status_id)) return false;
+      if (statusFilter !== "all" && statusFilter !== "open" && lead.status_id !== statusFilter) return false;
       const sourceLabel = lead.source_ad_id ? (sourceLabels[lead.source_ad_id] ?? "מודעה לא מזוהה") : "ידני";
       if (sourceFilter !== "all" && sourceLabel !== sourceFilter) return false;
       if (query) {
@@ -224,17 +233,37 @@ export function CrmTable({
     if (sortBy === "follow_up_asc") {
       rows = [...rows].sort((a, b) => (a.follow_up_at ?? "9999-99-99").localeCompare(b.follow_up_at ?? "9999-99-99"));
     }
+    if (sortBy === "deal_value_desc") {
+      rows = [...rows].sort((a, b) => (b.deal_value ?? 0) - (a.deal_value ?? 0));
+    }
     return rows;
-  }, [leads, search, statusFilter, sourceFilter, sortBy, sourceLabels]);
+  }, [leads, search, statusFilter, sourceFilter, sortBy, sourceLabels, openStatusIds]);
 
   const selectedLead = selectedLeadId ? (leads.find((l) => l.id === selectedLeadId) ?? null) : null;
 
   return (
     <div>
+      <form action={createLeadFromForm.bind(null, clientId)} className="card mb-4 space-y-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <input className="input" name="name" placeholder="שם" />
+          <input className="input" name="phone" placeholder="טלפון" />
+          <input className="input" name="email" type="email" placeholder="אימייל" />
+        </div>
+        <button type="submit" className="btn btn-primary">
+          + ליד חדש
+        </button>
+      </form>
+
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <input className="input max-w-xs" placeholder="חיפוש לפי שם / טלפון / אימייל" value={search} onChange={(e) => setSearch(e.target.value)} />
-        <select className="input w-40" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+        <input
+          className="input sm:max-w-xs"
+          placeholder="חיפוש לפי שם, טלפון, אימייל…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <select className="input sm:max-w-[12rem]" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="all">כל הסטטוסים</option>
+          <option value="open">פתוחים בלבד</option>
           {sortedStatuses.map((s) => (
             <option key={s.id} value={s.id}>
               {s.label}
@@ -242,7 +271,7 @@ export function CrmTable({
           ))}
         </select>
         {sourceOptions.length > 0 && (
-          <select className="input w-40" value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)}>
+          <select className="input sm:max-w-[12rem]" value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)}>
             <option value="all">כל המקורות</option>
             <option value="ידני">ידני</option>
             {sourceOptions.map((label) => (
@@ -252,28 +281,30 @@ export function CrmTable({
             ))}
           </select>
         )}
-        <select className="input w-44" value={sortBy} onChange={(e) => setSortBy(e.target.value as SortOption)}>
+        <select className="input sm:max-w-[12rem]" value={sortBy} onChange={(e) => setSortBy(e.target.value as SortOption)}>
           <option value="created_desc">חדשים קודם</option>
-          <option value="follow_up_asc">מעקב קרוב קודם</option>
+          <option value="follow_up_asc">לפי תאריך מעקב</option>
+          <option value="deal_value_desc">לפי שווי עסקה</option>
         </select>
       </div>
-      <div className="overflow-x-auto">
+
+      <div className="card overflow-x-auto p-0">
       <table className="w-full text-sm">
-        <thead>
-          <tr className="text-right text-slate-500">
+        <thead className="border-b border-slate-200 bg-slate-50 text-right text-xs text-slate-500">
+          <tr>
             {visibleColumns.map((col) => (
-              <th key={col.key} className="p-2 font-normal">
+              <th key={col.key} className="px-3 py-2 font-medium">
                 {col.label}
               </th>
             ))}
-            <th className="p-2 font-normal" />
+            <th className="px-3 py-2" />
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">
+        <tbody>
           {visibleLeads.length === 0 && (
             <tr>
-              <td colSpan={1 + visibleColumns.length} className="p-4 text-center text-slate-500">
-                אין לידים תואמים לסינון.
+              <td colSpan={1 + visibleColumns.length} className="px-3 py-6 text-center text-slate-500">
+                {leads.length === 0 ? "אין עדיין לידים ב-CRM הזה." : "אין לידים שתואמים לסינון."}
               </td>
             </tr>
           )}
@@ -283,34 +314,34 @@ export function CrmTable({
             return (
               <tr
                 key={lead.id}
-                className={`cursor-pointer hover:bg-slate-50 ${isOverdue ? "bg-red-50" : ""}`}
+                className={`cursor-pointer border-b border-slate-100 align-top last:border-0 hover:bg-slate-50 ${isOverdue ? "bg-red-50" : ""}`}
                 onClick={() => setSelectedLeadId(lead.id)}
               >
                 {visibleColumns.map((col) => {
                   switch (col.key) {
                     case "name":
                       return (
-                        <td key={col.key} className="p-1" onClick={(e) => e.stopPropagation()}>
+                        <td key={col.key} className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                           <EditableCell value={lead.name ?? ""} onSave={(v) => updateLeadField(lead.id, clientId, "name", v)} />
                         </td>
                       );
                     case "phone":
                       return (
-                        <td key={col.key} className="p-1" onClick={(e) => e.stopPropagation()}>
+                        <td key={col.key} className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                           <EditableCell value={lead.phone ?? ""} onSave={(v) => updateLeadField(lead.id, clientId, "phone", v)} />
                         </td>
                       );
                     case "email":
                       return (
-                        <td key={col.key} className="p-1" onClick={(e) => e.stopPropagation()}>
+                        <td key={col.key} className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                           <EditableCell value={lead.email ?? ""} onSave={(v) => updateLeadField(lead.id, clientId, "email", v)} />
                         </td>
                       );
                     case "status":
                       return (
-                        <td key={col.key} className="p-1" onClick={(e) => e.stopPropagation()}>
+                        <td key={col.key} className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                           <select
-                            className={`badge ${KIND_BADGE_CLASS[status?.kind ?? "open"]}`}
+                            className={`badge ${KIND_BADGE_CLASS[status?.kind ?? "open"]} cursor-pointer border-0`}
                             value={lead.status_id}
                             onChange={(e) => updateLeadStatus(lead.id, clientId, e.target.value)}
                           >
@@ -324,13 +355,13 @@ export function CrmTable({
                       );
                     case "source":
                       return (
-                        <td key={col.key} className="p-1 text-xs text-slate-500" title={lead.source_ad_id ? sourceLabels[lead.source_ad_id] : undefined}>
+                        <td key={col.key} className="px-3 py-2 text-xs text-slate-500" title={lead.source_ad_id ? sourceLabels[lead.source_ad_id] : undefined}>
                           {lead.source_ad_id ? (sourceLabels[lead.source_ad_id] ?? "מודעה לא מזוהה") : "ידני"}
                         </td>
                       );
                     case "deal_value":
                       return (
-                        <td key={col.key} className="p-1" onClick={(e) => e.stopPropagation()}>
+                        <td key={col.key} className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                           <EditableCell
                             value={String(lead.deal_value ?? "")}
                             type="number"
@@ -340,7 +371,7 @@ export function CrmTable({
                       );
                     case "follow_up":
                       return (
-                        <td key={col.key} className={`p-1 ${isOverdue ? "font-medium text-red-700" : ""}`} onClick={(e) => e.stopPropagation()}>
+                        <td key={col.key} className={`px-3 py-2 ${isOverdue ? "font-medium text-red-700" : ""}`} onClick={(e) => e.stopPropagation()}>
                           <EditableCell
                             value={lead.follow_up_at ?? ""}
                             type="date"
@@ -351,7 +382,7 @@ export function CrmTable({
                     default: {
                       const customColumn = columnById.get(col.key);
                       return (
-                        <td key={col.key} className="p-1" onClick={(e) => e.stopPropagation()}>
+                        <td key={col.key} className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                           <EditableCell
                             value={String(lead.custom_fields[col.key] ?? "")}
                             type={customColumn?.type === "number" ? "number" : "text"}
@@ -362,9 +393,15 @@ export function CrmTable({
                     }
                   }
                 })}
-                <td className="p-1" onClick={(e) => e.stopPropagation()}>
-                  <button type="button" className="btn btn-secondary text-xs" onClick={() => deleteLead(lead.id, clientId)}>
-                    ✕
+                <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    type="button"
+                    className="text-xs text-slate-400 hover:text-red-600"
+                    onClick={() => {
+                      if (confirm(`למחוק את הליד "${lead.name || "ללא שם"}"?`)) deleteLead(lead.id, clientId);
+                    }}
+                  >
+                    מחק
                   </button>
                 </td>
               </tr>
@@ -372,15 +409,6 @@ export function CrmTable({
           })}
         </tbody>
       </table>
-
-      <form action={createLeadFromForm.bind(null, clientId)} className="mt-4 flex flex-wrap gap-2">
-        <input className="input flex-1" name="name" placeholder="שם" />
-        <input className="input flex-1" name="phone" placeholder="טלפון" />
-        <input className="input flex-1" name="email" placeholder="אימייל" />
-        <button type="submit" className="btn btn-primary">
-          + ליד חדש
-        </button>
-      </form>
       </div>
       {selectedLead && (
         <LeadProfilePanel
