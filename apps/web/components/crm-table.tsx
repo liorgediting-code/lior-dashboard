@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type { MouseEvent } from "react";
 import type { Lead, LeadStatus, LeadColumn, LeadActivity } from "@dashboard-lior/shared";
 import { updateLeadField, updateLeadStatus, deleteLead, createLeadFromForm } from "@/lib/actions/leads";
 import { LeadActivityPanel } from "@/components/lead-activity-panel";
@@ -63,6 +64,10 @@ function EditableCell({
       }}
     />
   );
+}
+
+function ReadOnlyCell({ value, placeholder }: { value: string; placeholder?: string }) {
+  return <span className="block px-1 py-0.5">{value || <span className="text-slate-300">{placeholder ?? "—"}</span>}</span>;
 }
 
 function LeadProfilePanel({
@@ -185,6 +190,7 @@ export function CrmTable({
   columnLayout,
   sourceLabels = {},
   activitiesByLeadId = {},
+  inlineEdit = true,
 }: {
   clientId: string;
   leads: Lead[];
@@ -194,6 +200,8 @@ export function CrmTable({
   columnLayout: ResolvedColumn[];
   sourceLabels?: Record<string, string>;
   activitiesByLeadId?: Record<string, LeadActivity[]>;
+  /** When false the table cells are display-only and every edit happens in the lead profile panel. */
+  inlineEdit?: boolean;
 }) {
   const sortedStatuses = [...statuses].sort((a, b) => a.sort_order - b.sort_order);
   const columnById = new Map(columns.map((col) => [col.id, col]));
@@ -318,39 +326,57 @@ export function CrmTable({
                 onClick={() => setSelectedLeadId(lead.id)}
               >
                 {visibleColumns.map((col) => {
+                  /** Inline editors swallow the row click, so read-only cells must let it through to the panel. */
+                  const stopRowClick = inlineEdit ? (e: MouseEvent) => e.stopPropagation() : undefined;
                   switch (col.key) {
                     case "name":
                       return (
-                        <td key={col.key} className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                          <EditableCell value={lead.name ?? ""} onSave={(v) => updateLeadField(lead.id, clientId, "name", v)} />
+                        <td key={col.key} className="px-3 py-2" onClick={stopRowClick}>
+                          {inlineEdit ? (
+                            <EditableCell value={lead.name ?? ""} onSave={(v) => updateLeadField(lead.id, clientId, "name", v)} />
+                          ) : (
+                            <ReadOnlyCell value={lead.name ?? ""} />
+                          )}
                         </td>
                       );
                     case "phone":
                       return (
-                        <td key={col.key} className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                          <EditableCell value={lead.phone ?? ""} onSave={(v) => updateLeadField(lead.id, clientId, "phone", v)} />
+                        <td key={col.key} className="px-3 py-2" onClick={stopRowClick}>
+                          {inlineEdit ? (
+                            <EditableCell value={lead.phone ?? ""} onSave={(v) => updateLeadField(lead.id, clientId, "phone", v)} />
+                          ) : (
+                            <ReadOnlyCell value={lead.phone ?? ""} />
+                          )}
                         </td>
                       );
                     case "email":
                       return (
-                        <td key={col.key} className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                          <EditableCell value={lead.email ?? ""} onSave={(v) => updateLeadField(lead.id, clientId, "email", v)} />
+                        <td key={col.key} className="px-3 py-2" onClick={stopRowClick}>
+                          {inlineEdit ? (
+                            <EditableCell value={lead.email ?? ""} onSave={(v) => updateLeadField(lead.id, clientId, "email", v)} />
+                          ) : (
+                            <ReadOnlyCell value={lead.email ?? ""} />
+                          )}
                         </td>
                       );
                     case "status":
                       return (
-                        <td key={col.key} className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                          <select
-                            className={`badge ${KIND_BADGE_CLASS[status?.kind ?? "open"]} cursor-pointer border-0`}
-                            value={lead.status_id}
-                            onChange={(e) => updateLeadStatus(lead.id, clientId, e.target.value)}
-                          >
-                            {sortedStatuses.map((s) => (
-                              <option key={s.id} value={s.id}>
-                                {s.label}
-                              </option>
-                            ))}
-                          </select>
+                        <td key={col.key} className="px-3 py-2" onClick={stopRowClick}>
+                          {inlineEdit ? (
+                            <select
+                              className={`badge ${KIND_BADGE_CLASS[status?.kind ?? "open"]} cursor-pointer border-0`}
+                              value={lead.status_id}
+                              onChange={(e) => updateLeadStatus(lead.id, clientId, e.target.value)}
+                            >
+                              {sortedStatuses.map((s) => (
+                                <option key={s.id} value={s.id}>
+                                  {s.label}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className={`badge ${KIND_BADGE_CLASS[status?.kind ?? "open"]}`}>{status?.label ?? "—"}</span>
+                          )}
                         </td>
                       );
                     case "source":
@@ -361,33 +387,45 @@ export function CrmTable({
                       );
                     case "deal_value":
                       return (
-                        <td key={col.key} className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                          <EditableCell
-                            value={String(lead.deal_value ?? "")}
-                            type="number"
-                            onSave={(v) => updateLeadField(lead.id, clientId, "deal_value", v)}
-                          />
+                        <td key={col.key} className="px-3 py-2" onClick={stopRowClick}>
+                          {inlineEdit ? (
+                            <EditableCell
+                              value={String(lead.deal_value ?? "")}
+                              type="number"
+                              onSave={(v) => updateLeadField(lead.id, clientId, "deal_value", v)}
+                            />
+                          ) : (
+                            <ReadOnlyCell value={String(lead.deal_value ?? "")} />
+                          )}
                         </td>
                       );
                     case "follow_up":
                       return (
-                        <td key={col.key} className={`px-3 py-2 ${isOverdue ? "font-medium text-red-700" : ""}`} onClick={(e) => e.stopPropagation()}>
-                          <EditableCell
-                            value={lead.follow_up_at ?? ""}
-                            type="date"
-                            onSave={(v) => updateLeadField(lead.id, clientId, "follow_up_at", v)}
-                          />
+                        <td key={col.key} className={`px-3 py-2 ${isOverdue ? "font-medium text-red-700" : ""}`} onClick={stopRowClick}>
+                          {inlineEdit ? (
+                            <EditableCell
+                              value={lead.follow_up_at ?? ""}
+                              type="date"
+                              onSave={(v) => updateLeadField(lead.id, clientId, "follow_up_at", v)}
+                            />
+                          ) : (
+                            <ReadOnlyCell value={lead.follow_up_at ?? ""} />
+                          )}
                         </td>
                       );
                     default: {
                       const customColumn = columnById.get(col.key);
                       return (
-                        <td key={col.key} className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                          <EditableCell
-                            value={String(lead.custom_fields[col.key] ?? "")}
-                            type={customColumn?.type === "number" ? "number" : "text"}
-                            onSave={(v) => updateLeadField(lead.id, clientId, `custom:${col.key}`, v)}
-                          />
+                        <td key={col.key} className="px-3 py-2" onClick={stopRowClick}>
+                          {inlineEdit ? (
+                            <EditableCell
+                              value={String(lead.custom_fields[col.key] ?? "")}
+                              type={customColumn?.type === "number" ? "number" : "text"}
+                              onSave={(v) => updateLeadField(lead.id, clientId, `custom:${col.key}`, v)}
+                            />
+                          ) : (
+                            <ReadOnlyCell value={String(lead.custom_fields[col.key] ?? "")} />
+                          )}
                         </td>
                       );
                     }

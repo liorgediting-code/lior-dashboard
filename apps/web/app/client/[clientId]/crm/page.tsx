@@ -64,6 +64,7 @@ export default async function ClientPortalCrmPage({
         columnLayout={columnLayout}
         sourceLabels={sourceLabels}
         activitiesByLeadId={activitiesByLeadId}
+        inlineEdit={false}
       />
     </div>
   );
