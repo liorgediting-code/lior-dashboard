@@ -6,11 +6,11 @@ import { createLeadStatus, renameLeadStatus, deleteLeadStatus, setDefaultLeadSta
 import { createLeadColumn, renameLeadColumn, deleteLeadColumn, reorderLeadColumn } from "@/lib/actions/lead-columns";
 import { createColumnFromWebhookKey, deleteWebhookFieldMapping, setWebhookFieldMapping } from "@/lib/actions/webhook-mappings";
 import { moveCrmColumn, toggleCrmColumnVisibility } from "@/lib/actions/crm-layout";
-import { setCrmThemeColor } from "@/lib/actions/crm-theme";
-import { CRM_THEME_COLORS, type CrmThemeColor } from "@dashboard-lior/shared";
+import { setPortalThemeColor } from "@/lib/actions/portal-theme";
+import { PORTAL_THEME_COLORS, type PortalThemeColor } from "@dashboard-lior/shared";
 import type { ResolvedColumn } from "@/lib/crm/column-layout";
 
-const THEME_COLOR_LABELS: Record<CrmThemeColor, string> = {
+const THEME_COLOR_LABELS: Record<PortalThemeColor, string> = {
   blue: "כחול",
   green: "ירוק",
   purple: "סגול",
@@ -20,7 +20,7 @@ const THEME_COLOR_LABELS: Record<CrmThemeColor, string> = {
   slate: "אפור",
 };
 
-const THEME_COLOR_SWATCH_CLASS: Record<CrmThemeColor, string> = {
+const THEME_COLOR_SWATCH_CLASS: Record<PortalThemeColor, string> = {
   blue: "bg-blue-600",
   green: "bg-green-600",
   purple: "bg-purple-600",
@@ -92,8 +92,8 @@ export function CrmManagePanel({
   columns: LeadColumn[];
   /** Resolved order + visibility of every column shown in the CRM table, built-in and custom together. */
   columnLayout: ResolvedColumn[];
-  /** Null = default blue. */
-  themeColor: CrmThemeColor | null;
+  /** Null = default blue. Affects the client's whole portal, not just the CRM. */
+  themeColor: PortalThemeColor | null;
   /** Omitted in the client portal — webhook plumbing is an agency concern. */
   webhook?: WebhookMappingProps;
 }) {
@@ -297,9 +297,10 @@ export function CrmManagePanel({
       </div>
 
       <div>
-        <h3 className="mb-2 text-sm font-medium text-slate-700">ערכת צבעים</h3>
+        <h3 className="mb-1 text-sm font-medium text-slate-700">ערכת צבעים לפורטל הלקוח</h3>
+        <p className="mb-2 text-xs text-slate-500">משפיע על כל הפורטל שהלקוח רואה — הבאנר, הטאבים, הכותרת וה-CRM. לא משפיע על מסכי הניהול שלך.</p>
         <div className="flex flex-wrap gap-2">
-          {CRM_THEME_COLORS.map((color) => {
+          {PORTAL_THEME_COLORS.map((color) => {
             const isSelected = (themeColor ?? "blue") === color;
             return (
               <button
@@ -308,7 +309,7 @@ export function CrmManagePanel({
                 className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${
                   isSelected ? "border-slate-800" : "border-slate-200 hover:border-slate-400"
                 }`}
-                onClick={() => runAction(() => setCrmThemeColor(clientId, color))}
+                onClick={() => runAction(() => setPortalThemeColor(clientId, color))}
               >
                 <span className={`h-3 w-3 rounded-full ${THEME_COLOR_SWATCH_CLASS[color]}`} />
                 {THEME_COLOR_LABELS[color]}

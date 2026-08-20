@@ -25,10 +25,10 @@ export function ClientPortalHeader({
     <div className="mb-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700 ring-1 ring-inset ring-blue-200">
+          <span className="portal-avatar flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold ring-1 ring-inset">
             {clientName.trim().charAt(0)}
           </span>
-          <h1 className="text-2xl font-bold text-blue-950">{clientName}</h1>
+          <h1 className="portal-heading text-2xl font-bold">{clientName}</h1>
         </div>
         <div className="flex items-center gap-2">
           <button type="button" className="btn btn-secondary text-sm" onClick={() => setShowPasswordForm((v) => !v)}>

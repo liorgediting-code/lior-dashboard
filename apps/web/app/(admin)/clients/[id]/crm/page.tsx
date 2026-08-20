@@ -8,14 +8,14 @@ import { resolveLeadSources } from "@/lib/crm/lead-sources";
 import { fetchActivitiesByLead } from "@/lib/crm/fetch-activities";
 import { suggestUnmappedKeys } from "@/lib/crm/webhook-mapping";
 import { resolveColumnLayout } from "@/lib/crm/column-layout";
-import type { Lead, LeadStatus, LeadColumn, WebhookFieldMapping, CrmColumnLayoutEntry, CrmThemeColor } from "@dashboard-lior/shared";
+import type { Lead, LeadStatus, LeadColumn, WebhookFieldMapping, CrmColumnLayoutEntry, PortalThemeColor } from "@dashboard-lior/shared";
 
 export const dynamic = "force-dynamic";
 
 export default async function ClientCrmPage({ params }: { params: { id: string } }) {
   const supabase = supabaseAdmin();
   const [{ data: client }, { data: leads }, { data: statuses }, { data: columns }, { data: mappings }] = await Promise.all([
-    supabase.from("clients").select("id, name, crm_column_layout, crm_theme_color").eq("id", params.id).single(),
+    supabase.from("clients").select("id, name, crm_column_layout, portal_theme_color").eq("id", params.id).single(),
     supabase.from("leads").select("*").eq("client_id", params.id).order("created_at", { ascending: false }),
     supabase.from("lead_statuses").select("*").eq("client_id", params.id),
     supabase.from("lead_columns").select("*").eq("client_id", params.id),
@@ -35,33 +35,31 @@ export default async function ClientCrmPage({ params }: { params: { id: string }
     <div>
       <h1 className="mb-1 text-2xl font-bold">{client.name as string}</h1>
       <ClientTabs clientId={params.id} active="crm" />
-      <div data-crm-theme={(client.crm_theme_color as CrmThemeColor | null) ?? "blue"}>
-        <CrmDashboardStats leads={leadRows} statuses={(statuses ?? []) as LeadStatus[]} />
-        <CrmManagePanel
-          clientId={params.id}
-          statuses={(statuses ?? []) as LeadStatus[]}
-          columns={columnRows}
-          columnLayout={columnLayout}
-          themeColor={client.crm_theme_color as CrmThemeColor | null}
-          webhook={{
-            mappings: mappingRows,
-            suggestedKeys: suggestUnmappedKeys(
-              leadRows.map((lead) => lead.custom_fields),
-              mappingRows,
-              new Set(columnRows.map((column) => column.id))
-            ),
-          }}
-        />
-        <CrmTable
-          clientId={params.id}
-          leads={leadRows}
-          statuses={(statuses ?? []) as LeadStatus[]}
-          columns={columnRows}
-          columnLayout={columnLayout}
-          sourceLabels={sourceLabels}
-          activitiesByLeadId={activitiesByLeadId}
-        />
-      </div>
+      <CrmDashboardStats leads={leadRows} statuses={(statuses ?? []) as LeadStatus[]} />
+      <CrmManagePanel
+        clientId={params.id}
+        statuses={(statuses ?? []) as LeadStatus[]}
+        columns={columnRows}
+        columnLayout={columnLayout}
+        themeColor={client.portal_theme_color as PortalThemeColor | null}
+        webhook={{
+          mappings: mappingRows,
+          suggestedKeys: suggestUnmappedKeys(
+            leadRows.map((lead) => lead.custom_fields),
+            mappingRows,
+            new Set(columnRows.map((column) => column.id))
+          ),
+        }}
+      />
+      <CrmTable
+        clientId={params.id}
+        leads={leadRows}
+        statuses={(statuses ?? []) as LeadStatus[]}
+        columns={columnRows}
+        columnLayout={columnLayout}
+        sourceLabels={sourceLabels}
+        activitiesByLeadId={activitiesByLeadId}
+      />
     </div>
   );
 }

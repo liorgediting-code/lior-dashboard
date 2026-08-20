@@ -68,72 +68,204 @@ button.card:hover {
   @apply mb-1 block text-sm font-medium text-slate-700;
 }
 
-/* ---------- CRM color themes ----------
- * Per-client accent color for the CRM screens (buttons, input focus rings) —
- * see CRM_THEME_COLORS in packages/shared/src/domain.ts. Blue is the
- * default and needs no override since .btn-primary/.btn-secondary/.input
- * are already blue; a [data-crm-theme] wrapper only exists for the other
- * presets. Scoped to a wrapper around the CRM content, not the shared
- * client-portal tab bar, which spans sections beyond the CRM.
+/* ---------- client portal accent elements ----------
+ * The blue bits of the portal chrome that aren't already covered by
+ * .btn-primary/.btn-secondary/.input, pulled into named classes so the
+ * [data-portal-theme] overrides below have something to target.
  */
-[data-crm-theme="green"] .btn-primary {
+.portal-banner {
+  @apply border-b border-blue-900/40 bg-gradient-to-r from-blue-950 via-blue-900 to-blue-950 text-blue-100;
+}
+.portal-tab-list {
+  @apply border-blue-100;
+}
+.portal-tab-link-active {
+  @apply border-blue-600 text-blue-900;
+}
+.portal-tab-link-inactive {
+  @apply hover:text-blue-700;
+}
+.portal-avatar {
+  @apply bg-blue-100 text-blue-700 ring-blue-200;
+}
+.portal-heading {
+  @apply text-blue-950;
+}
+
+/* ---------- client portal color themes ----------
+ * Per-client accent color for the whole client portal (banner, tabs,
+ * header, CRM buttons/inputs) — see PORTAL_THEME_COLORS in
+ * packages/shared/src/domain.ts. Blue is the default and needs no
+ * override since every class above is already blue; a [data-portal-theme]
+ * wrapper only exists for the other presets. Set on the portal layout, so
+ * it covers every page under client/[clientId] — never on admin pages.
+ */
+[data-portal-theme="green"] .btn-primary {
   @apply bg-green-600 shadow-green-600/20 hover:bg-green-700 hover:shadow-green-600/30 focus-visible:ring-green-500;
 }
-[data-crm-theme="green"] .btn-secondary {
+[data-portal-theme="green"] .btn-secondary {
   @apply bg-green-50 text-green-900 hover:bg-green-100 focus-visible:ring-green-400;
 }
-[data-crm-theme="green"] .input {
+[data-portal-theme="green"] .input {
   @apply focus:border-green-500 focus:ring-green-500/20;
 }
+[data-portal-theme="green"] .portal-banner {
+  @apply border-green-900/40 from-green-950 via-green-900 to-green-950 text-green-100;
+}
+[data-portal-theme="green"] .portal-tab-list {
+  @apply border-green-100;
+}
+[data-portal-theme="green"] .portal-tab-link-active {
+  @apply border-green-600 text-green-900;
+}
+[data-portal-theme="green"] .portal-tab-link-inactive {
+  @apply hover:text-green-700;
+}
+[data-portal-theme="green"] .portal-avatar {
+  @apply bg-green-100 text-green-700 ring-green-200;
+}
+[data-portal-theme="green"] .portal-heading {
+  @apply text-green-950;
+}
 
-[data-crm-theme="purple"] .btn-primary {
+[data-portal-theme="purple"] .btn-primary {
   @apply bg-purple-600 shadow-purple-600/20 hover:bg-purple-700 hover:shadow-purple-600/30 focus-visible:ring-purple-500;
 }
-[data-crm-theme="purple"] .btn-secondary {
+[data-portal-theme="purple"] .btn-secondary {
   @apply bg-purple-50 text-purple-900 hover:bg-purple-100 focus-visible:ring-purple-400;
 }
-[data-crm-theme="purple"] .input {
+[data-portal-theme="purple"] .input {
   @apply focus:border-purple-500 focus:ring-purple-500/20;
 }
+[data-portal-theme="purple"] .portal-banner {
+  @apply border-purple-900/40 from-purple-950 via-purple-900 to-purple-950 text-purple-100;
+}
+[data-portal-theme="purple"] .portal-tab-list {
+  @apply border-purple-100;
+}
+[data-portal-theme="purple"] .portal-tab-link-active {
+  @apply border-purple-600 text-purple-900;
+}
+[data-portal-theme="purple"] .portal-tab-link-inactive {
+  @apply hover:text-purple-700;
+}
+[data-portal-theme="purple"] .portal-avatar {
+  @apply bg-purple-100 text-purple-700 ring-purple-200;
+}
+[data-portal-theme="purple"] .portal-heading {
+  @apply text-purple-950;
+}
 
-[data-crm-theme="rose"] .btn-primary {
+[data-portal-theme="rose"] .btn-primary {
   @apply bg-rose-600 shadow-rose-600/20 hover:bg-rose-700 hover:shadow-rose-600/30 focus-visible:ring-rose-500;
 }
-[data-crm-theme="rose"] .btn-secondary {
+[data-portal-theme="rose"] .btn-secondary {
   @apply bg-rose-50 text-rose-900 hover:bg-rose-100 focus-visible:ring-rose-400;
 }
-[data-crm-theme="rose"] .input {
+[data-portal-theme="rose"] .input {
   @apply focus:border-rose-500 focus:ring-rose-500/20;
 }
+[data-portal-theme="rose"] .portal-banner {
+  @apply border-rose-900/40 from-rose-950 via-rose-900 to-rose-950 text-rose-100;
+}
+[data-portal-theme="rose"] .portal-tab-list {
+  @apply border-rose-100;
+}
+[data-portal-theme="rose"] .portal-tab-link-active {
+  @apply border-rose-600 text-rose-900;
+}
+[data-portal-theme="rose"] .portal-tab-link-inactive {
+  @apply hover:text-rose-700;
+}
+[data-portal-theme="rose"] .portal-avatar {
+  @apply bg-rose-100 text-rose-700 ring-rose-200;
+}
+[data-portal-theme="rose"] .portal-heading {
+  @apply text-rose-950;
+}
 
-[data-crm-theme="amber"] .btn-primary {
+[data-portal-theme="amber"] .btn-primary {
   @apply bg-amber-600 shadow-amber-600/20 hover:bg-amber-700 hover:shadow-amber-600/30 focus-visible:ring-amber-500;
 }
-[data-crm-theme="amber"] .btn-secondary {
+[data-portal-theme="amber"] .btn-secondary {
   @apply bg-amber-50 text-amber-900 hover:bg-amber-100 focus-visible:ring-amber-400;
 }
-[data-crm-theme="amber"] .input {
+[data-portal-theme="amber"] .input {
   @apply focus:border-amber-500 focus:ring-amber-500/20;
 }
+[data-portal-theme="amber"] .portal-banner {
+  @apply border-amber-900/40 from-amber-950 via-amber-900 to-amber-950 text-amber-100;
+}
+[data-portal-theme="amber"] .portal-tab-list {
+  @apply border-amber-100;
+}
+[data-portal-theme="amber"] .portal-tab-link-active {
+  @apply border-amber-600 text-amber-900;
+}
+[data-portal-theme="amber"] .portal-tab-link-inactive {
+  @apply hover:text-amber-700;
+}
+[data-portal-theme="amber"] .portal-avatar {
+  @apply bg-amber-100 text-amber-700 ring-amber-200;
+}
+[data-portal-theme="amber"] .portal-heading {
+  @apply text-amber-950;
+}
 
-[data-crm-theme="teal"] .btn-primary {
+[data-portal-theme="teal"] .btn-primary {
   @apply bg-teal-600 shadow-teal-600/20 hover:bg-teal-700 hover:shadow-teal-600/30 focus-visible:ring-teal-500;
 }
-[data-crm-theme="teal"] .btn-secondary {
+[data-portal-theme="teal"] .btn-secondary {
   @apply bg-teal-50 text-teal-900 hover:bg-teal-100 focus-visible:ring-teal-400;
 }
-[data-crm-theme="teal"] .input {
+[data-portal-theme="teal"] .input {
   @apply focus:border-teal-500 focus:ring-teal-500/20;
 }
+[data-portal-theme="teal"] .portal-banner {
+  @apply border-teal-900/40 from-teal-950 via-teal-900 to-teal-950 text-teal-100;
+}
+[data-portal-theme="teal"] .portal-tab-list {
+  @apply border-teal-100;
+}
+[data-portal-theme="teal"] .portal-tab-link-active {
+  @apply border-teal-600 text-teal-900;
+}
+[data-portal-theme="teal"] .portal-tab-link-inactive {
+  @apply hover:text-teal-700;
+}
+[data-portal-theme="teal"] .portal-avatar {
+  @apply bg-teal-100 text-teal-700 ring-teal-200;
+}
+[data-portal-theme="teal"] .portal-heading {
+  @apply text-teal-950;
+}
 
-[data-crm-theme="slate"] .btn-primary {
+[data-portal-theme="slate"] .btn-primary {
   @apply bg-slate-600 shadow-slate-600/20 hover:bg-slate-700 hover:shadow-slate-600/30 focus-visible:ring-slate-500;
 }
-[data-crm-theme="slate"] .btn-secondary {
+[data-portal-theme="slate"] .btn-secondary {
   @apply bg-slate-200 text-slate-900 hover:bg-slate-300 focus-visible:ring-slate-400;
 }
-[data-crm-theme="slate"] .input {
+[data-portal-theme="slate"] .input {
   @apply focus:border-slate-500 focus:ring-slate-500/20;
+}
+[data-portal-theme="slate"] .portal-banner {
+  @apply border-slate-900/40 from-slate-950 via-slate-900 to-slate-950 text-slate-100;
+}
+[data-portal-theme="slate"] .portal-tab-list {
+  @apply border-slate-200;
+}
+[data-portal-theme="slate"] .portal-tab-link-active {
+  @apply border-slate-600 text-slate-900;
+}
+[data-portal-theme="slate"] .portal-tab-link-inactive {
+  @apply hover:text-slate-700;
+}
+[data-portal-theme="slate"] .portal-avatar {
+  @apply bg-slate-200 text-slate-700 ring-slate-300;
+}
+[data-portal-theme="slate"] .portal-heading {
+  @apply text-slate-950;
 }
 
 /* ---------- motion ---------- */
