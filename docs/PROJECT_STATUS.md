@@ -568,20 +568,44 @@ correct.
   `Content-Range` survives on a 206; a 206 is not treated as a failure; and
   `content-encoding`/`set-cookie`/CORS/`x-goog-*` are dropped.
 
-### Still blocked, owner action needed
+### Verified live end to end, 2026-08-20 — Drive seeking works
 
-`GOOGLE_API_KEY` is unset. **Seeking is still unproven end to end** — the
-forwarding logic is now pinned by tests, but what those tests cannot answer
-is Drive-side: whether `files.get?alt=media` with an *API key* honours a
-Range header at all, and whether large public ad videos trip Drive's virus
-scan (`cannotDownloadAbusiveFile`, a 403 this route would surface as a bare
-502). Both need the real key.
+`GOOGLE_API_KEY` supplied and added to `apps/web/.env.local` (gitignored).
+Folder `1x-n17...` set on **ליאב כהן** by the owner through the new edit
+field — the write path's first real use was theirs, not a test.
 
-To finish: a `GOOGLE_API_KEY` from a GCP project **with the Drive API
-enabled** (a key without that enablement fails with a misleading 403), plus
-one client's folder link pasted into client edit. Then sync, `curl -H
-"Range: bytes=0-99"` the stream route expecting 206 + `Content-Range`, and
-confirm a real video seeks in a browser.
+Both Drive-side unknowns resolved **favourably**, and neither could have
+been answered without the key:
+
+- **`files.get?alt=media` DOES honour Range under API-key auth.** Returns
+  `206` + `Content-Range` on a plain key, no OAuth needed.
+- **Large public files do NOT trip the virus scan here.** A 127 MB `.mov`
+  served bytes normally — no `cannotDownloadAbusiveFile` 403. Worth
+  re-testing if files grow much past that; the threshold is undocumented.
+
+Proven through the running app (real server action, invoked over the
+`Next-Action` protocol rather than a reimplementation of it):
+
+- Sync pulled **6 videos**, all with real durations (32.3s–107.3s), sizes
+  (39.7–127.8 MB) and thumbnails. Re-running it left the row count at 6 —
+  the `(client_id, drive_file_id)` upsert is idempotent.
+- Stream route: `200` + `Accept-Ranges: bytes` on a full request;
+  `206` + `Content-Range: bytes 0-99/69321619` at the head; `206` +
+  `bytes 20000000-20000099/69321619` on a **mid-file seek**.
+- **Byte integrity:** the same mid-file range fetched through the proxy and
+  straight from Drive are sha256-identical. The proxy is not mangling the
+  stream.
+- **Grant enforcement, all three ways in refused:** no grant → 403;
+  tampered signature → 403; and *another video's currently-valid grant* →
+  403, confirming the grant is bound to the video id in the URL path rather
+  than to the bearer.
+- Sanity check that fell out of probing the action ids: `addVideoComment`
+  and `resolveVideoComment` both rejected a client id passed where a
+  video/comment id belongs, which is the ownership-derivation fix holding.
+
+Still done by eye only: watching the scrub bar move in a real browser. The
+206s, the offsets and the byte-identical hashes are the mechanism behind
+seeking, so this is now a formality rather than an open risk.
 
 ### Nothing schedules the cron routes
 
