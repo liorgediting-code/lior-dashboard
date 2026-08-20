@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildStreamResponseInit, isDriveFailure, mapDriveFailureStatus } from "../stream-response";
+import { buildStreamResponseInit, isDriveFailure, mapDriveFailureStatus, normaliseVideoContentType } from "../stream-response";
 
 function driveHeaders(entries: Record<string, string>): Headers {
   return new Headers(entries);
@@ -36,9 +36,11 @@ describe("buildStreamResponseInit", () => {
     expect(headers.get("Accept-Ranges")).toBe("bytes");
   });
 
+  // Uses an already-playable type so this stays a test of the FALLBACK and
+  // not of the quicktime relabelling, which is covered separately below.
   it("falls back to the stored mime type when Drive omits content-type", () => {
-    const { headers } = buildStreamResponseInit(200, driveHeaders({}), "video/quicktime");
-    expect(headers.get("Content-Type")).toBe("video/quicktime");
+    const { headers } = buildStreamResponseInit(200, driveHeaders({}), "video/webm");
+    expect(headers.get("Content-Type")).toBe("video/webm");
   });
 
   it("omits Content-Type entirely when neither source has one", () => {
@@ -105,5 +107,44 @@ describe("mapDriveFailureStatus", () => {
   it("reports any other upstream problem as 502", () => {
     expect(mapDriveFailureStatus(403)).toBe(502);
     expect(mapDriveFailureStatus(500)).toBe(502);
+  });
+});
+
+describe("normaliseVideoContentType", () => {
+  // Drive reports every .mov export as video/quicktime, which some playback
+  // paths refuse outright — before decoding a byte, so it looks identical
+  // to a broken stream.
+  it("relabels quicktime as mp4", () => {
+    expect(normaliseVideoContentType("video/quicktime")).toBe("video/mp4");
+    expect(normaliseVideoContentType("video/x-quicktime")).toBe("video/mp4");
+  });
+
+  it("matches case-insensitively, since header casing is not guaranteed", () => {
+    expect(normaliseVideoContentType("Video/QuickTime")).toBe("video/mp4");
+  });
+
+  it("keeps parameters attached to the relabelled type", () => {
+    expect(normaliseVideoContentType("video/quicktime; charset=binary")).toBe("video/mp4; charset=binary");
+  });
+
+  it("leaves an already-playable type completely alone", () => {
+    expect(normaliseVideoContentType("video/mp4")).toBe("video/mp4");
+    expect(normaliseVideoContentType("video/webm")).toBe("video/webm");
+  });
+
+  it("passes null through rather than inventing a type", () => {
+    expect(normaliseVideoContentType(null)).toBeNull();
+  });
+});
+
+describe("buildStreamResponseInit + quicktime", () => {
+  it("relabels a quicktime response on the way to the browser", () => {
+    const { headers } = buildStreamResponseInit(206, new Headers({ "content-type": "video/quicktime" }), null);
+    expect(headers.get("Content-Type")).toBe("video/mp4");
+  });
+
+  it("relabels the stored fallback type too, not just Drive's header", () => {
+    const { headers } = buildStreamResponseInit(200, new Headers({}), "video/quicktime");
+    expect(headers.get("Content-Type")).toBe("video/mp4");
   });
 });

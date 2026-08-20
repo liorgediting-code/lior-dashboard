@@ -7,6 +7,34 @@
  * scrub bar simply refuses to move, with no error anywhere.
  */
 
+/**
+ * Drive labels .mov exports `video/quicktime`, which several playback paths
+ * treat as unplayable and refuse before decoding a single byte — even when
+ * the bytes are a perfectly ordinary MP4-family stream.
+ *
+ * A .mov IS an ISO-BMFF container, the same family as .mp4, so reporting it
+ * as video/mp4 is accurate rather than a lie to the browser. Note this only
+ * fixes the CONTAINER label: it cannot make an undecodable codec playable
+ * (these exports are HEVC, which needs hardware support on the viewer's
+ * machine), so a file that still won't play after this is a codec problem,
+ * not a header one.
+ */
+const CONTAINER_ALIASES: Record<string, string> = {
+  "video/quicktime": "video/mp4",
+  "video/x-quicktime": "video/mp4",
+};
+
+/** Maps a container's alias to the label browsers actually accept, preserving any parameters. */
+export function normaliseVideoContentType(contentType: string | null): string | null {
+  if (!contentType) return null;
+  // Split the parameters off (`video/quicktime; charset=...`) so a header
+  // that carries them still matches, then reattach them untouched.
+  const [base, ...rest] = contentType.split(";");
+  const alias = CONTAINER_ALIASES[base.trim().toLowerCase()];
+  if (!alias) return contentType;
+  return [alias, ...rest].join(";");
+}
+
 export type StreamResponseInit = {
   status: number;
   headers: Headers;
@@ -25,7 +53,7 @@ export function buildStreamResponseInit(
 ): StreamResponseInit {
   const headers = new Headers();
 
-  const contentType = driveHeaders.get("content-type") ?? fallbackMimeType;
+  const contentType = normaliseVideoContentType(driveHeaders.get("content-type") ?? fallbackMimeType);
   if (contentType) headers.set("Content-Type", contentType);
 
   const contentLength = driveHeaders.get("content-length");
