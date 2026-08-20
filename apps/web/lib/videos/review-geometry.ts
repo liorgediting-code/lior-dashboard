@@ -12,6 +12,8 @@ import type { VideoComment, VideoDrawing } from "@dashboard-lior/shared";
 // store or compare raw pixels.
 
 export type DisplayBox = { width: number; height: number };
+/** A box positioned within an element box — the video content, bars excluded. */
+export type ContentBox = { left: number; top: number; width: number; height: number };
 export type Point = [number, number];
 
 /** Clamp to [0, 1] — a stroke drawn a pixel past the video edge must not store >1 or <0. */
@@ -38,6 +40,58 @@ export function normaliseStrokePoints(points: Point[], box: DisplayBox): Point[]
 
 export function projectStrokePoints(points: Point[], box: DisplayBox): Point[] {
   return points.map((point) => projectPoint(point, box));
+}
+
+/**
+ * The rectangle the video's PIXELS actually occupy inside its element box.
+ *
+ * Why this exists: a 1080x1920 ad inside a 768px-wide player would render
+ * ~1365px tall, which is unusable — you cannot see the frame and the notes
+ * at once. Constraining the height means `object-contain`, which means
+ * pillarbox bars, which means the element box is no longer the video.
+ *
+ * Normalising against the ELEMENT box would then put a stroke in a
+ * different relative spot whenever the bar width changes (different window,
+ * different device, fullscreen). Normalise against this instead and a mark
+ * stays on the same part of the frame everywhere.
+ */
+export function videoContentBox(elementBox: DisplayBox, intrinsic: DisplayBox): ContentBox {
+  // Before `loadedmetadata` the intrinsic size is 0x0 and there is no
+  // sensible content box — fall back to the element box so early strokes
+  // are merely imprecise rather than divided by zero.
+  if (intrinsic.width <= 0 || intrinsic.height <= 0 || elementBox.width <= 0 || elementBox.height <= 0) {
+    return { left: 0, top: 0, width: elementBox.width, height: elementBox.height };
+  }
+  // `object-contain` scales to the smaller of the two ratios, letting the
+  // other axis get bars.
+  const scale = Math.min(elementBox.width / intrinsic.width, elementBox.height / intrinsic.height);
+  const width = intrinsic.width * scale;
+  const height = intrinsic.height * scale;
+  return {
+    left: (elementBox.width - width) / 2,
+    top: (elementBox.height - height) / 2,
+    width,
+    height,
+  };
+}
+
+/** Element-space pixel point -> normalised 0..1 against the content box (bars excluded). */
+export function normalisePointInContent(point: Point, box: ContentBox): Point {
+  return normalisePoint([point[0] - box.left, point[1] - box.top], { width: box.width, height: box.height });
+}
+
+/** Normalised 0..1 point -> element-space pixel point, re-adding the current bar offset. */
+export function projectPointInContent(point: Point, box: ContentBox): Point {
+  const [x, y] = projectPoint(point, { width: box.width, height: box.height });
+  return [x + box.left, y + box.top];
+}
+
+export function normaliseStrokeInContent(points: Point[], box: ContentBox): Point[] {
+  return points.map((point) => normalisePointInContent(point, box));
+}
+
+export function projectStrokeInContent(points: Point[], box: ContentBox): Point[] {
+  return points.map((point) => projectPointInContent(point, box));
 }
 
 /** `12.4` -> `"0:12"`. Truncates the fraction — the label is for humans, the stored value keeps it. */
