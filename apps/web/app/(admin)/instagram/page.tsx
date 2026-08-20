@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { InstagramSyncButton } from "@/components/instagram-sync-button";
 import { isInstagramConfigured } from "@/lib/instagram/client";
 import { fetchAllMedia, fetchDailyMetrics } from "@/lib/instagram/fetch-insights";
 import { formatNumber, formatPercent } from "@/lib/format";
@@ -100,9 +101,11 @@ export default async function InstagramInsightsPage() {
       <div className="mx-auto max-w-2xl">
         <h1 className="mb-4 text-2xl font-bold">אינסטגרם</h1>
         <div className="card">
-          <p className="text-slate-600">
-            עדיין אין נתוני אינסטגרם מסונכרנים. הריצו את הסנכרון היומי (cron) כדי למשוך נתונים מהחשבון.
+          <p className="mb-3 text-slate-600">
+            עדיין אין נתוני אינסטגרם מסונכרנים. אף מתזמן חיצוני לא מריץ את הסנכרון כרגע — לחצו כאן כדי למשוך נתונים
+            מהחשבון עכשיו.
           </p>
+          <InstagramSyncButton />
         </div>
       </div>
     );
@@ -114,7 +117,10 @@ export default async function InstagramInsightsPage() {
 
   return (
     <div>
-      <h1 className="mb-1 text-2xl font-bold">אינסטגרם</h1>
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold">אינסטגרם</h1>
+        <InstagramSyncButton />
+      </div>
       <p className="mb-4 text-sm text-slate-500">
         {WINDOW_DAYS} הימים האחרונים לעומת {WINDOW_DAYS} הימים שלפני כן · נתונים עשויים להתעדכן עד 48 שעות אחורה, וחלק
         מהמדדים מוסתרים ע״י אינסטגרם בחשבונות קטנים

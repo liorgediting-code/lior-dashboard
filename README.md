@@ -81,6 +81,11 @@ npm run build --workspace=apps/web
 - `POST /api/cron/monthly-cpl-recalc` — חודשי
 - `POST /api/cron/alerts-check` — כל כמה שעות
 - `POST /api/cron/whatsapp-automation-tick` — כל כמה דקות
+- `POST /api/cron/instagram-sync` — יומי
+
+**שימו לב:** אין בריפו הזה `vercel.json` ואין שום מתזמן — אף אחד מהראוטים
+האלה לא רץ מעצמו. עד שיחובר מתזמן חיצוני, אפשר להריץ סנכרון אינסטגרם ידנית
+מכפתור "סנכרן עכשיו" בעמוד `/instagram` (server action, לא דורש `CRON_SECRET`).
 
 ## MCP Server
 
