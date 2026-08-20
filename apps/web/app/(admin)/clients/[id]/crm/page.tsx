@@ -4,6 +4,8 @@ import { ClientTabs } from "@/components/client-tabs";
 import { CrmTable } from "@/components/crm-table";
 import { CrmManagePanel } from "@/components/crm-manage-panel";
 import { CrmDashboardStats } from "@/components/crm-dashboard-stats";
+import { CampaignCrmDashboard } from "@/components/campaign-crm-dashboard";
+import { CRM_CAMPAIGN_WINDOW_DAYS, fetchCrmCampaignDashboard } from "@/lib/metrics/crm-campaigns";
 import { resolveLeadSources } from "@/lib/crm/lead-sources";
 import { fetchActivitiesByLead } from "@/lib/crm/fetch-activities";
 import { suggestUnmappedKeys } from "@/lib/crm/webhook-mapping";
@@ -26,9 +28,10 @@ export default async function ClientCrmPage({ params }: { params: { id: string }
   const columnRows = (columns ?? []) as LeadColumn[];
   const mappingRows = (mappings ?? []) as WebhookFieldMapping[];
   const columnLayout = resolveColumnLayout(client.crm_column_layout as CrmColumnLayoutEntry[] | null, columnRows);
-  const [sourceLabels, activitiesByLeadId] = await Promise.all([
+  const [sourceLabels, activitiesByLeadId, pinnedCampaigns] = await Promise.all([
     resolveLeadSources(supabase, leadRows),
     fetchActivitiesByLead(supabase, params.id),
+    fetchCrmCampaignDashboard(supabase, { clientId: params.id }),
   ]);
 
   return (
@@ -36,6 +39,7 @@ export default async function ClientCrmPage({ params }: { params: { id: string }
       <h1 className="mb-1 text-2xl font-bold">{client.name as string}</h1>
       <ClientTabs clientId={params.id} active="crm" />
       <CrmDashboardStats leads={leadRows} statuses={(statuses ?? []) as LeadStatus[]} />
+      <CampaignCrmDashboard campaigns={pinnedCampaigns} windowDays={CRM_CAMPAIGN_WINDOW_DAYS} manageHref="/campaigns" />
       <CrmManagePanel
         clientId={params.id}
         statuses={(statuses ?? []) as LeadStatus[]}

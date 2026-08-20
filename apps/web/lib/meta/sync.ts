@@ -6,13 +6,37 @@ function isoDaysAgo(days: number) {
   return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
-async function findOrCreateCampaign(clientId: string, metaId: string, name: string) {
+/**
+ * `status` is what the /campaigns page filters active/not-active on, so a
+ * re-sync must REFRESH it on rows that already exist — a campaign paused in
+ * Ads Manager would otherwise stay ACTIVE in our copy forever.
+ *
+ * `statuses` is the map fetched once per account below, or `null` when that
+ * request failed. Null means "we don't know": leave an existing row's status
+ * exactly as it was rather than overwriting real data with a guess. A
+ * campaign present in insights but absent from a map we DID fetch has been
+ * deleted since, and gets UNKNOWN — never a hopeful ACTIVE.
+ */
+async function findOrCreateCampaign(clientId: string, metaId: string, name: string, statuses: Map<string, string> | null) {
   const supabase = supabaseAdmin();
-  const { data: existing } = await supabase.from("campaigns").select("id").eq("client_id", clientId).eq("meta_id", metaId).maybeSingle();
-  if (existing) return existing.id as string;
+  const status = statuses?.get(metaId) ?? "UNKNOWN";
+  const { data: existing } = await supabase
+    .from("campaigns")
+    .select("id, status")
+    .eq("client_id", clientId)
+    .eq("meta_id", metaId)
+    .maybeSingle();
+
+  if (existing) {
+    if (statuses && existing.status !== status) {
+      await supabase.from("campaigns").update({ status }).eq("id", existing.id as string);
+    }
+    return existing.id as string;
+  }
+
   const { data: created, error } = await supabase
     .from("campaigns")
-    .insert({ client_id: clientId, meta_id: metaId, name, status: "ACTIVE" })
+    .insert({ client_id: clientId, meta_id: metaId, name, status })
     .select("id")
     .single();
   if (error || !created) throw new Error(error?.message ?? "failed to create campaign");
@@ -72,9 +96,20 @@ export async function syncClientAdMetrics(clientId: string, lookbackDays = 3) {
   const until = isoDaysAgo(0);
   const insights = await meta.fetchDailyInsights(adAccountId, accessToken, since, until);
 
+  // One extra request per account, not per insight row: the insights edge
+  // carries no status field at all. A failure here must not lose the
+  // metrics we already fetched, so it degrades to "leave statuses alone".
+  let campaignStatuses: Map<string, string> | null = null;
+  try {
+    const rows = await meta.fetchCampaignStatuses(adAccountId, accessToken);
+    campaignStatuses = new Map(rows.map((row) => [row.campaignId, row.status]));
+  } catch {
+    campaignStatuses = null;
+  }
+
   let synced = 0;
   for (const insight of insights) {
-    const campaignId = await findOrCreateCampaign(clientId, insight.campaignId, insight.campaignName);
+    const campaignId = await findOrCreateCampaign(clientId, insight.campaignId, insight.campaignName, campaignStatuses);
     const adsetId = await findOrCreateAdset(campaignId, insight.adsetId, insight.adsetName);
     const adId = await findOrCreateAd(adsetId, insight.adId, insight.adName);
 

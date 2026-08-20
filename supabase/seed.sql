@@ -49,6 +49,24 @@ insert into ad_metrics_daily (ad_id, date, spend, leads, impressions, clicks) va
   ('11111111-4444-1111-1111-111111111113', current_date - 2, 100, 1, 4000, 60),
   ('11111111-4444-1111-1111-111111111113', current_date - 1, 100, 0, 3900, 55);
 
+-- A second, PAUSED campaign for the same client. Without it every seeded
+-- campaign is ACTIVE and the "לא פעילים" filter on /campaigns opens empty on
+-- a fresh `supabase db reset`, which reads as a broken page rather than as
+-- an empty bucket. Its ad has spend but no recent leads — a realistic reason
+-- to have paused it.
+insert into campaigns (id, client_id, meta_id, name, funnel_stage, status)
+values ('11111111-2222-1111-1111-111111111112', '11111111-1111-1111-1111-111111111111', 'demo_camp_2', 'הלבנות - BOFU (מושהה)', 'BOFU', 'PAUSED');
+
+insert into adsets (id, campaign_id, meta_id, name, funnel_stage, status)
+values ('11111111-3333-1111-1111-111111111112', '11111111-2222-1111-1111-111111111112', 'demo_adset_2', 'רימרקטינג 30 יום', 'BOFU', 'PAUSED');
+
+insert into ads (id, adset_id, meta_id, name, funnel_stage, status) values
+  ('11111111-4444-1111-1111-111111111114', '11111111-3333-1111-1111-111111111112', 'demo_ad_2a', 'סטורי הלבנות', 'BOFU', 'PAUSED');
+
+insert into ad_metrics_daily (ad_id, date, spend, leads, impressions, clicks) values
+  ('11111111-4444-1111-1111-111111111114', current_date - 9, 120, 1, 3000, 45),
+  ('11111111-4444-1111-1111-111111111114', current_date - 8, 130, 0, 3100, 40);
+
 insert into leads (client_id, name, phone, email, source_ad_id, status_id, created_at, closed_at, deal_value) values
   ('11111111-1111-1111-1111-111111111111', 'דנה כהן', '052-1112222', 'dana.cohen@example.com', '11111111-4444-1111-1111-111111111111', '11111111-5555-1111-1111-111111111104', now() - interval '10 days', now() - interval '3 days', 3200),
   ('11111111-1111-1111-1111-111111111111', 'יוסי לוי', '052-3334444', 'yossi.levi@example.com', '11111111-4444-1111-1111-111111111111', '11111111-5555-1111-1111-111111111103', now() - interval '2 days', null, null),

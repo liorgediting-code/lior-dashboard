@@ -610,11 +610,88 @@ seeking, so this is now a formality rather than an open risk.
 ### Nothing schedules the cron routes
 
 There is no `vercel.json` and no scheduler config in the repo — every
-`/api/cron/*` route (including `instagram-sync`) is triggered externally,
-presumably the n8n/Make setup the `CRON_SECRET` comment implies. The
-Instagram sync has only ever run because it was curled by hand. Whoever
-owns that scheduler needs to add `instagram-sync` to it; deliberately not
-adding scheduling infrastructure here without the owner asking.
+`/api/cron/*` route is triggered externally, presumably the n8n/Make setup
+the `CRON_SECRET` comment implies. Whoever owns that scheduler still needs
+to add `instagram-sync` to it (README now lists it); no scheduling
+infrastructure was added here, because the owner asked for a button, not a
+scheduler.
+
+**Instagram now has a manual escape hatch.** `/instagram` used to tell you
+to "run the daily cron" with no way to do so — the owner hit exactly that
+message and could not find the cron, because there isn't one. There is now
+a "סנכרן עכשיו" button (`components/instagram-sync-button.tsx` →
+`lib/actions/instagram.ts`) calling the same `syncInstagramInsights()` the
+route calls. As a server action it needs no `CRON_SECRET`, which also
+sidesteps the fact that `verifyCronSecret` returns false whenever
+`CRON_SECRET` is unset. Note `syncInstagramInsights()` RETURNS
+`{ synced: false, reason }` rather than throwing when Instagram is
+unconfigured — the action checks that explicitly, or the button would
+report success having done nothing.
+
+## Phase 23 — cross-client campaigns list + CRM campaign dashboards
+
+`/campaigns` (`app/(admin)/campaigns/page.tsx`, nav entry "קמפיינים") lists
+every campaign across every client with 30-day spend/leads/CPL/CTR, filters
+by פעילים / לא פעילים / הכל, and sorts by spend, leads, CPL, name or client
+— all via `?status=&sort=` searchParams, so a filtered view is linkable and
+the page stays a server component.
+
+Each row carries two checkboxes ("ה-CRM שלי" / "CRM הלקוח") backed by
+`campaigns.show_in_agency_crm` and `campaigns.show_in_client_crm`
+(migration `20260819130000_phase23_campaign_crm_dashboards.sql`). A pinned
+campaign renders a `<CampaignCrmDashboard>` — the same `CampaignStatsTable`
+the campaigns tab uses — on `/agency-crm`, `/clients/[id]/crm` and the
+client portal `/client/[clientId]/crm`. All three go through
+`lib/metrics/crm-campaigns.ts` so the window can't drift. The dashboard
+renders **nothing** when no campaign is pinned, rather than an empty card on
+every CRM forever.
+
+Booleans rather than a join table like `funnel_campaigns`: this is a
+visibility flag with two fixed destinations, not membership in a
+collection. Writes go through `setCampaignCrmVisibility` in
+`lib/actions/campaigns.ts`, guarded by the new
+`lib/auth/assert-agency-access.ts` (the mirror of `assertCrmAccess` —
+rejects portal sessions outright) because pinning to the client surface
+publishes spend into the portal. That exposure is consistent with what
+clients already see: `lib/reports/build-report.ts` puts total and
+per-campaign spend/leads/CPL in every published weekly report.
+
+### `campaigns.status` now holds the real Meta status
+
+This was load-bearing and easy to miss. `lib/meta/sync.ts` used to hardcode
+`status: "ACTIVE"` on insert and never refresh existing rows, and the
+insights edge carries no status field at all — so every campaign in the DB
+read ACTIVE and the "לא פעילים" filter would have shipped permanently
+empty. `MetaClient` grew `fetchCampaignStatuses()` (one paged request per
+account against the `/campaigns` edge, `fields=id,name,effective_status`),
+and `findOrCreateCampaign` now writes it on insert **and updates it on
+re-sync** so a campaign paused in Ads Manager stops reading ACTIVE here.
+If that request fails the map is `null` and existing statuses are left
+alone — a fetch failure must not overwrite real data with a guess.
+
+`MockMetaClient` now emits two campaigns, one ACTIVE and one PAUSED
+(`META_USE_MOCK` defaults to true), so the filter has something to filter
+in the demo. Compare statuses only through
+`lib/metrics/campaign-status.ts` — the column has no check constraint and
+Meta's vocabulary includes ARCHIVED, PENDING_REVIEW and friends.
+
+Adsets and ads still hardcode `status: "ACTIVE"` on insert. Nothing filters
+on those yet, so it was left alone deliberately; fix it the same way if an
+adset/ad-level filter ever lands.
+
+Two known limits, neither a today problem: `/campaigns` passes every ad id
+across every client into `fetchMetricRows`, which pages ROWS but not the
+`.in("ad_id", …)` list — at ~20 clients that query string approaches the
+PostgREST/proxy URL length limit (same neighbourhood as the max-rows note in
+`lib/metrics/fetch-stats.ts`). And the `clients(name)` embed in
+`fetchAllCampaigns` throws rather than degrading if postgrest can't resolve
+the FK, so `/campaigns` is the first page to load after applying the
+migration.
+
+**Not verified against live data.** The migration is written but unapplied
+(no Docker/Supabase CLI and no `.env.local` on this machine).
+`npm run typecheck`, `npm run test` and `npm run build` are green, which
+this file already warns is necessary and not sufficient.
 
 ## Still not built
 

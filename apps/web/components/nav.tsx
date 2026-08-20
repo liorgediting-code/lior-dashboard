@@ -11,6 +11,7 @@ function Icon(props: SVGProps<SVGSVGElement>) {
 const links = [
   { href: "/", label: "דשבורד", icon: (p: SVGProps<SVGSVGElement>) => <Icon {...p}><path d="M3 12h6v9H3zM15 3h6v18h-6zM9 8h6v13H9z" /></Icon> },
   { href: "/clients", label: "לקוחות", icon: (p: SVGProps<SVGSVGElement>) => <Icon {...p}><path d="M17 20v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" /><circle cx="10" cy="8" r="4" /><path d="M22 20v-2a4 4 0 0 0-3-3.87" /><path d="M16 4.13a4 4 0 0 1 0 7.75" /></Icon> },
+  { href: "/campaigns", label: "קמפיינים", icon: (p: SVGProps<SVGSVGElement>) => <Icon {...p}><path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1z" /><path d="M16 9a4 4 0 0 1 0 6" /><path d="M19 6a8 8 0 0 1 0 12" /></Icon> },
   { href: "/agency-crm", label: "CRM סוכנות", icon: (p: SVGProps<SVGSVGElement>) => <Icon {...p}><path d="M3 3h18v18H3z" /><path d="M3 9h18M9 21V9" /></Icon> },
   { href: "/funnels", label: "פאנלים", icon: (p: SVGProps<SVGSVGElement>) => <Icon {...p}><path d="M22 3H2l8 9.46V19l4 2v-8.54z" /></Icon> },
   { href: "/notes", label: "יומן הערות", icon: (p: SVGProps<SVGSVGElement>) => <Icon {...p}><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></Icon> },

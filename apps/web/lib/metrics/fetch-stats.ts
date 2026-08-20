@@ -29,6 +29,44 @@ export async function fetchCampaignsForClient(supabase: Supabase, clientId: stri
   return (data ?? []) as Campaign[];
 }
 
+/** A campaign plus the name of the client it belongs to, for the cross-client list. */
+export type CampaignWithClient = Campaign & { clientName: string };
+
+/**
+ * Every campaign across every client, for /campaigns. Embeds the client name
+ * in the same round trip rather than issuing a second query and joining in
+ * memory — `campaigns` declares its client FK in database.types.ts precisely
+ * so postgrest-js can type this.
+ */
+export async function fetchAllCampaigns(supabase: Supabase): Promise<CampaignWithClient[]> {
+  const { data, error } = await supabase.from("campaigns").select("*, clients(name)").order("name");
+  if (error) throw new Error(error.message);
+
+  return ((data ?? []) as Array<Campaign & { clients: { name: string } | null }>).map(({ clients, ...campaign }) => ({
+    ...campaign,
+    clientName: clients?.name ?? "לקוח לא ידוע",
+  }));
+}
+
+/**
+ * The campaigns pinned onto one CRM surface. `agency` reads the flag across
+ * all clients; a clientId reads that client's flag only — the client portal
+ * must never see another client's campaigns even by accident.
+ */
+export async function fetchCampaignsPinnedToCrm(supabase: Supabase, target: "agency" | { clientId: string }): Promise<CampaignWithClient[]> {
+  const query = supabase.from("campaigns").select("*, clients(name)").order("name");
+  const { data, error } =
+    target === "agency"
+      ? await query.eq("show_in_agency_crm", true)
+      : await query.eq("show_in_client_crm", true).eq("client_id", target.clientId);
+  if (error) throw new Error(error.message);
+
+  return ((data ?? []) as Array<Campaign & { clients: { name: string } | null }>).map(({ clients, ...campaign }) => ({
+    ...campaign,
+    clientName: clients?.name ?? "לקוח לא ידוע",
+  }));
+}
+
 /**
  * Pages through ad_metrics_daily rather than issuing one unbounded select:
  * Supabase caps API responses at max-rows (1,000 by default) and silently

@@ -1,5 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { AgencyCrmTable } from "@/components/agency-crm-table";
+import { CampaignCrmDashboard } from "@/components/campaign-crm-dashboard";
+import { CRM_CAMPAIGN_WINDOW_DAYS, fetchCrmCampaignDashboard } from "@/lib/metrics/crm-campaigns";
 import { createAgencyLeadFromForm } from "@/lib/actions/agency-leads";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import type { AgencyLead } from "@dashboard-lior/shared";
@@ -24,7 +26,10 @@ function StatCard({ label, value }: { label: string; value: string }) {
 
 export default async function AgencyCrmPage() {
   const supabase = supabaseAdmin();
-  const { data } = await supabase.from("agency_leads").select("*").order("created_at", { ascending: false });
+  const [{ data }, pinnedCampaigns] = await Promise.all([
+    supabase.from("agency_leads").select("*").order("created_at", { ascending: false }),
+    fetchCrmCampaignDashboard(supabase, "agency"),
+  ]);
   const leads = (data ?? []) as AgencyLead[];
 
   const today = new Date().toISOString().slice(0, 10);
@@ -48,6 +53,13 @@ export default async function AgencyCrmPage() {
         <StatCard label="עסקאות שנסגרו החודש" value={formatNumber(wonThisMonth.length)} />
         <StatCard label="הכנסה מעסקאות החודש" value={formatCurrency(wonValue)} />
       </div>
+
+      <CampaignCrmDashboard
+        campaigns={pinnedCampaigns}
+        windowDays={CRM_CAMPAIGN_WINDOW_DAYS}
+        showClientColumn
+        manageHref="/campaigns"
+      />
 
       {overdue.length > 0 && (
         <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">

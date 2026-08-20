@@ -80,7 +80,7 @@ export type Database = {
       clients: Table<Client>;
       baseline_snapshots: Table<BaselineSnapshot>;
       missions: Table<Mission, ClientFk<"missions">>;
-      campaigns: Table<Campaign>;
+      campaigns: Table<Campaign, ClientFk<"campaigns">>;
       adsets: Table<AdSet>;
       ads: Table<Ad>;
       ad_metrics_daily: Table<AdMetricDaily>;

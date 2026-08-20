@@ -4,6 +4,8 @@ import { requireClientSession } from "@/lib/auth/require-client-session";
 import { CrmTable } from "@/components/crm-table";
 import { CrmManagePanel } from "@/components/crm-manage-panel";
 import { CrmDashboardStats } from "@/components/crm-dashboard-stats";
+import { CampaignCrmDashboard } from "@/components/campaign-crm-dashboard";
+import { CRM_CAMPAIGN_WINDOW_DAYS, fetchCrmCampaignDashboard } from "@/lib/metrics/crm-campaigns";
 import { ClientPortalHeader } from "@/components/client-portal-header";
 import { PortalTabs } from "@/components/portal-tabs";
 import { resolveLeadSources } from "@/lib/crm/lead-sources";
@@ -34,10 +36,13 @@ export default async function ClientPortalCrmPage({
   const leadRows = (leads ?? []) as Lead[];
   const columnRows = (columns ?? []) as LeadColumn[];
   const columnLayout = resolveColumnLayout(client.crm_column_layout as CrmColumnLayoutEntry[] | null, columnRows);
-  const [sourceLabels, activitiesByLeadId, tabsData] = await Promise.all([
+  const [sourceLabels, activitiesByLeadId, tabsData, pinnedCampaigns] = await Promise.all([
     resolveLeadSources(supabase, leadRows),
     fetchActivitiesByLead(supabase, params.clientId),
     getPortalTabsData(supabase, params.clientId),
+    // Only campaigns the agency explicitly pinned for THIS client — the
+    // fetcher scopes by client_id as well as by the flag.
+    fetchCrmCampaignDashboard(supabase, { clientId: params.clientId }),
   ]);
 
   return (
@@ -50,6 +55,7 @@ export default async function ClientPortalCrmPage({
       />
       <PortalTabs clientId={params.clientId} active="crm" {...tabsData} />
       <CrmDashboardStats leads={leadRows} statuses={(statuses ?? []) as LeadStatus[]} />
+      <CampaignCrmDashboard campaigns={pinnedCampaigns} windowDays={CRM_CAMPAIGN_WINDOW_DAYS} />
       <CrmManagePanel
         clientId={params.clientId}
         statuses={(statuses ?? []) as LeadStatus[]}

@@ -96,7 +96,12 @@ export type Campaign = {
   meta_id: string | null;
   name: string;
   funnel_stage: FunnelStage | null;
+  /** Meta's `effective_status` verbatim — ACTIVE / PAUSED / ARCHIVED / … See lib/metrics/campaign-status.ts before comparing it. */
   status: string | null;
+  /** Pins this campaign's dashboard onto /agency-crm. */
+  show_in_agency_crm: boolean;
+  /** Pins it onto the client's CRM — both the agency-side tab and the client portal. */
+  show_in_client_crm: boolean;
 };
 
 export type AdSet = {

@@ -1,5 +1,5 @@
 import "server-only";
-import type { MetaClient, MetaAdInsight } from "./types";
+import type { MetaClient, MetaAdInsight, MetaCampaignStatus } from "./types";
 
 const GRAPH_API_VERSION = "v21.0";
 const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
@@ -46,5 +46,44 @@ export class RealMetaClient implements MetaClient {
         clicks: Number(row.clicks ?? 0),
       };
     });
+  }
+
+  /**
+   * Paged deliberately: an account with more than 25 campaigns (Meta's
+   * default page size) would otherwise silently report only the first page,
+   * and every campaign missing from the response keeps whatever status it
+   * was last synced with — which is exactly the stale-ACTIVE bug this method
+   * exists to fix.
+   */
+  async fetchCampaignStatuses(adAccountId: string, accessToken: string): Promise<MetaCampaignStatus[]> {
+    const params = new URLSearchParams({
+      access_token: accessToken,
+      fields: "id,name,effective_status",
+      limit: "100",
+    });
+
+    let url: string | null = `${GRAPH_BASE}/${adAccountId}/campaigns?${params.toString()}`;
+    const statuses: MetaCampaignStatus[] = [];
+
+    while (url) {
+      const res: Response = await fetch(url);
+      if (!res.ok) throw new Error(`Meta campaigns fetch failed: ${res.status} ${await res.text()}`);
+      const json = (await res.json()) as {
+        data: Array<Record<string, unknown>>;
+        paging?: { next?: string };
+      };
+
+      for (const row of json.data) {
+        statuses.push({
+          campaignId: row.id as string,
+          name: row.name as string,
+          status: (row.effective_status as string | undefined) ?? "UNKNOWN",
+        });
+      }
+
+      url = json.paging?.next ?? null;
+    }
+
+    return statuses;
   }
 }
