@@ -10,7 +10,7 @@ import { resolveLeadSources } from "@/lib/crm/lead-sources";
 import { fetchActivitiesByLead } from "@/lib/crm/fetch-activities";
 import { getPortalTabsData } from "@/lib/crm/portal-tabs-data";
 import { resolveColumnLayout } from "@/lib/crm/column-layout";
-import type { Lead, LeadStatus, LeadColumn, CrmColumnLayoutEntry } from "@dashboard-lior/shared";
+import type { Lead, LeadStatus, LeadColumn, CrmColumnLayoutEntry, CrmThemeColor } from "@dashboard-lior/shared";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +25,7 @@ export default async function ClientPortalCrmPage({
 
   const supabase = supabaseAdmin();
   const [{ data: client }, { data: leads }, { data: statuses }, { data: columns }] = await Promise.all([
-    supabase.from("clients").select("id, name, crm_column_layout").eq("id", params.clientId).single(),
+    supabase.from("clients").select("id, name, crm_column_layout, crm_theme_color").eq("id", params.clientId).single(),
     supabase.from("leads").select("*").eq("client_id", params.clientId).order("created_at", { ascending: false }),
     supabase.from("lead_statuses").select("*").eq("client_id", params.clientId),
     supabase.from("lead_columns").select("*").eq("client_id", params.clientId),
@@ -49,23 +49,26 @@ export default async function ClientPortalCrmPage({
         passwordError={searchParams.password_error}
       />
       <PortalTabs clientId={params.clientId} active="crm" {...tabsData} />
-      <CrmDashboardStats leads={leadRows} statuses={(statuses ?? []) as LeadStatus[]} />
-      <CrmManagePanel
-        clientId={params.clientId}
-        statuses={(statuses ?? []) as LeadStatus[]}
-        columns={columnRows}
-        columnLayout={columnLayout}
-      />
-      <CrmTable
-        clientId={params.clientId}
-        leads={leadRows}
-        statuses={(statuses ?? []) as LeadStatus[]}
-        columns={columnRows}
-        columnLayout={columnLayout}
-        sourceLabels={sourceLabels}
-        activitiesByLeadId={activitiesByLeadId}
-        inlineEdit={false}
-      />
+      <div data-crm-theme={(client.crm_theme_color as CrmThemeColor | null) ?? "blue"}>
+        <CrmDashboardStats leads={leadRows} statuses={(statuses ?? []) as LeadStatus[]} />
+        <CrmManagePanel
+          clientId={params.clientId}
+          statuses={(statuses ?? []) as LeadStatus[]}
+          columns={columnRows}
+          columnLayout={columnLayout}
+          themeColor={client.crm_theme_color as CrmThemeColor | null}
+        />
+        <CrmTable
+          clientId={params.clientId}
+          leads={leadRows}
+          statuses={(statuses ?? []) as LeadStatus[]}
+          columns={columnRows}
+          columnLayout={columnLayout}
+          sourceLabels={sourceLabels}
+          activitiesByLeadId={activitiesByLeadId}
+          inlineEdit={false}
+        />
+      </div>
     </div>
   );
 }

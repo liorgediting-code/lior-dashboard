@@ -47,6 +47,8 @@ export type Client = {
   password_reset_requested_at: string | null;
   /** Order + visibility of the CRM table's columns, built-in and custom together. Null = default order, nothing hidden (phase 21b). */
   crm_column_layout: CrmColumnLayoutEntry[] | null;
+  /** Accent color for this client's CRM screens. Null = default blue (phase 22). */
+  crm_theme_color: CrmThemeColor | null;
   created_at: string;
 };
 
@@ -55,6 +57,10 @@ export type CrmColumnLayoutEntry = {
   key: string;
   hidden: boolean;
 };
+
+/** Preset CRM accent colors — see the `[data-crm-theme]` rules in globals.css. */
+export const CRM_THEME_COLORS = ["blue", "green", "purple", "rose", "amber", "teal", "slate"] as const;
+export type CrmThemeColor = (typeof CRM_THEME_COLORS)[number];
 
 export type DriveLink = {
   label: string;

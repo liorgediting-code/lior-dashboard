@@ -6,7 +6,29 @@ import { createLeadStatus, renameLeadStatus, deleteLeadStatus, setDefaultLeadSta
 import { createLeadColumn, renameLeadColumn, deleteLeadColumn, reorderLeadColumn } from "@/lib/actions/lead-columns";
 import { createColumnFromWebhookKey, deleteWebhookFieldMapping, setWebhookFieldMapping } from "@/lib/actions/webhook-mappings";
 import { moveCrmColumn, toggleCrmColumnVisibility } from "@/lib/actions/crm-layout";
+import { setCrmThemeColor } from "@/lib/actions/crm-theme";
+import { CRM_THEME_COLORS, type CrmThemeColor } from "@dashboard-lior/shared";
 import type { ResolvedColumn } from "@/lib/crm/column-layout";
+
+const THEME_COLOR_LABELS: Record<CrmThemeColor, string> = {
+  blue: "כחול",
+  green: "ירוק",
+  purple: "סגול",
+  rose: "ורוד",
+  amber: "ענבר",
+  teal: "טורקיז",
+  slate: "אפור",
+};
+
+const THEME_COLOR_SWATCH_CLASS: Record<CrmThemeColor, string> = {
+  blue: "bg-blue-600",
+  green: "bg-green-600",
+  purple: "bg-purple-600",
+  rose: "bg-rose-600",
+  amber: "bg-amber-600",
+  teal: "bg-teal-600",
+  slate: "bg-slate-600",
+};
 
 /** Sentinel select value meaning "create a new column for this field" — never a real column id (those are uuids). */
 const NEW_COLUMN_TARGET = "__new_column__";
@@ -62,6 +84,7 @@ export function CrmManagePanel({
   statuses,
   columns,
   columnLayout,
+  themeColor,
   webhook,
 }: {
   clientId: string;
@@ -69,6 +92,8 @@ export function CrmManagePanel({
   columns: LeadColumn[];
   /** Resolved order + visibility of every column shown in the CRM table, built-in and custom together. */
   columnLayout: ResolvedColumn[];
+  /** Null = default blue. */
+  themeColor: CrmThemeColor | null;
   /** Omitted in the client portal — webhook plumbing is an agency concern. */
   webhook?: WebhookMappingProps;
 }) {
@@ -268,6 +293,29 @@ export function CrmManagePanel({
               </button>
             </div>
           ))}
+        </div>
+      </div>
+
+      <div>
+        <h3 className="mb-2 text-sm font-medium text-slate-700">ערכת צבעים</h3>
+        <div className="flex flex-wrap gap-2">
+          {CRM_THEME_COLORS.map((color) => {
+            const isSelected = (themeColor ?? "blue") === color;
+            return (
+              <button
+                key={color}
+                type="button"
+                className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${
+                  isSelected ? "border-slate-800" : "border-slate-200 hover:border-slate-400"
+                }`}
+                onClick={() => runAction(() => setCrmThemeColor(clientId, color))}
+              >
+                <span className={`h-3 w-3 rounded-full ${THEME_COLOR_SWATCH_CLASS[color]}`} />
+                {THEME_COLOR_LABELS[color]}
+                {isSelected && " ✓"}
+              </button>
+            );
+          })}
         </div>
       </div>
 

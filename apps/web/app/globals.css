@@ -68,6 +68,74 @@ button.card:hover {
   @apply mb-1 block text-sm font-medium text-slate-700;
 }
 
+/* ---------- CRM color themes ----------
+ * Per-client accent color for the CRM screens (buttons, input focus rings) —
+ * see CRM_THEME_COLORS in packages/shared/src/domain.ts. Blue is the
+ * default and needs no override since .btn-primary/.btn-secondary/.input
+ * are already blue; a [data-crm-theme] wrapper only exists for the other
+ * presets. Scoped to a wrapper around the CRM content, not the shared
+ * client-portal tab bar, which spans sections beyond the CRM.
+ */
+[data-crm-theme="green"] .btn-primary {
+  @apply bg-green-600 shadow-green-600/20 hover:bg-green-700 hover:shadow-green-600/30 focus-visible:ring-green-500;
+}
+[data-crm-theme="green"] .btn-secondary {
+  @apply bg-green-50 text-green-900 hover:bg-green-100 focus-visible:ring-green-400;
+}
+[data-crm-theme="green"] .input {
+  @apply focus:border-green-500 focus:ring-green-500/20;
+}
+
+[data-crm-theme="purple"] .btn-primary {
+  @apply bg-purple-600 shadow-purple-600/20 hover:bg-purple-700 hover:shadow-purple-600/30 focus-visible:ring-purple-500;
+}
+[data-crm-theme="purple"] .btn-secondary {
+  @apply bg-purple-50 text-purple-900 hover:bg-purple-100 focus-visible:ring-purple-400;
+}
+[data-crm-theme="purple"] .input {
+  @apply focus:border-purple-500 focus:ring-purple-500/20;
+}
+
+[data-crm-theme="rose"] .btn-primary {
+  @apply bg-rose-600 shadow-rose-600/20 hover:bg-rose-700 hover:shadow-rose-600/30 focus-visible:ring-rose-500;
+}
+[data-crm-theme="rose"] .btn-secondary {
+  @apply bg-rose-50 text-rose-900 hover:bg-rose-100 focus-visible:ring-rose-400;
+}
+[data-crm-theme="rose"] .input {
+  @apply focus:border-rose-500 focus:ring-rose-500/20;
+}
+
+[data-crm-theme="amber"] .btn-primary {
+  @apply bg-amber-600 shadow-amber-600/20 hover:bg-amber-700 hover:shadow-amber-600/30 focus-visible:ring-amber-500;
+}
+[data-crm-theme="amber"] .btn-secondary {
+  @apply bg-amber-50 text-amber-900 hover:bg-amber-100 focus-visible:ring-amber-400;
+}
+[data-crm-theme="amber"] .input {
+  @apply focus:border-amber-500 focus:ring-amber-500/20;
+}
+
+[data-crm-theme="teal"] .btn-primary {
+  @apply bg-teal-600 shadow-teal-600/20 hover:bg-teal-700 hover:shadow-teal-600/30 focus-visible:ring-teal-500;
+}
+[data-crm-theme="teal"] .btn-secondary {
+  @apply bg-teal-50 text-teal-900 hover:bg-teal-100 focus-visible:ring-teal-400;
+}
+[data-crm-theme="teal"] .input {
+  @apply focus:border-teal-500 focus:ring-teal-500/20;
+}
+
+[data-crm-theme="slate"] .btn-primary {
+  @apply bg-slate-600 shadow-slate-600/20 hover:bg-slate-700 hover:shadow-slate-600/30 focus-visible:ring-slate-500;
+}
+[data-crm-theme="slate"] .btn-secondary {
+  @apply bg-slate-200 text-slate-900 hover:bg-slate-300 focus-visible:ring-slate-400;
+}
+[data-crm-theme="slate"] .input {
+  @apply focus:border-slate-500 focus:ring-slate-500/20;
+}
+
 /* ---------- motion ---------- */
 @keyframes fade-in-up {
   from {
