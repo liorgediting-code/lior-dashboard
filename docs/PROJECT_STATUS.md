@@ -607,6 +607,48 @@ Still done by eye only: watching the scrub bar move in a real browser. The
 206s, the offsets and the byte-identical hashes are the mechanism behind
 seeking, so this is now a formality rather than an open risk.
 
+### Phase 20c, 2026-08-20 — drawing on the frame
+
+Playback confirmed working in production by the owner. Drawing existed but
+was **unusable**, for a reason no test could have caught: the canvas backing
+store was sized once at mount, before `loadedmetadata`. A 1080x1920 ad makes
+the video element ~9x taller the instant metadata arrives, so the small
+backing store got CSS-stretched and every stroke landed squashed and offset
+from where it was drawn.
+
+- Sizing now runs off a **ResizeObserver AND a `loadedmetadata` listener**.
+  Two triggers are needed, not one: the element height is capped, so its box
+  may not change at all when metadata lands while the pillarbox changes
+  completely — ResizeObserver never fires for that case.
+- Height had to be capped (a vertical ad rendered ~1365px tall, so you could
+  not see the frame and the notes at once), which means `object-contain`,
+  which means bars, which means **the element box is no longer the video**.
+  Coordinates now normalise against `videoContentBox` with the bars
+  excluded. A round-trip test pins the property the feature rests on: a mark
+  made on a 768px desktop lands on the same part of the FRAME on a 390px
+  phone, despite the bars differing in size AND position.
+  **Do not normalise against the element box.** That is the trap this
+  function exists to close.
+- Incremental canvas painting replaced by a single state-driven `repaint()`.
+  The old code painted each segment as the pointer moved and never repainted
+  from state, so a window resize silently erased finished strokes and undo
+  was impossible. That refactor is what makes colour/undo/clear feasible.
+- `setPointerCapture` + `isPrimary` — clients review on phones, and a palm
+  touch was otherwise a second stroke.
+- Verified: a drawing posted through the real `addVideoComment` action
+  round-trips byte-identical through jsonb, `timestamp_seconds` keeps 12.4,
+  `author_kind` infers correctly, and the comment renders with its marker.
+  Test row deleted afterwards.
+
+Stored format unchanged — `VideoDrawingStroke` already carried per-stroke
+colour and width, so existing comments keep rendering.
+
+**Codec note for the owner:** these exports are HEVC in .mov. They decode on
+macOS; a client on Windows without an HEVC decoder sees a blank player. The
+proxy relabels the container `video/mp4` (accurate — .mov is ISO-BMFF), but
+no header fixes a codec. Export review copies as H.264 MP4 if a client
+reports a black screen.
+
 ### Nothing schedules the cron routes
 
 There is no `vercel.json` and no scheduler config in the repo — every
