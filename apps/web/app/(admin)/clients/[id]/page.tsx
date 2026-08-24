@@ -215,6 +215,7 @@ export default async function ClientProfilePage({
             <div className="xl:col-span-2">
               <ClientQuestionnaireCard
                 clientId={c.id}
+                weekStart={weekStart}
                 weekLabel={formatWeekRange(weekStart)}
                 questions={template?.questions ?? []}
                 response={questionnaireResponse}

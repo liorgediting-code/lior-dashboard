@@ -70,11 +70,17 @@ export async function submitQuestionnaireFromForm(clientId: string, formData: Fo
   for (const question of template.questions) {
     const raw = String(formData.get(`q_${question.id}`) ?? "").trim();
     if (raw === "") {
+      if (question.required) {
+        throw new Error(`שדה חובה חסר: ${question.label}`);
+      }
       answers[question.id] = null;
       continue;
     }
     if (question.type === "number" || question.type === "rating") {
       const parsed = Number(raw);
+      if (!Number.isFinite(parsed) && question.required) {
+        throw new Error(`שדה חובה חסר: ${question.label}`);
+      }
       answers[question.id] = Number.isFinite(parsed) ? parsed : null;
     } else {
       answers[question.id] = raw;
@@ -94,5 +100,24 @@ export async function submitQuestionnaireFromForm(clientId: string, formData: Fo
   if (error) throw new Error(error.message);
 
   revalidatePath(`/client/${clientId}/questionnaire`);
+  revalidatePath("/questionnaires");
+}
+
+/**
+ * Admin-facing: deletes a client's response for one week so they can fill it
+ * again. Used to force a re-fill mid-week rather than waiting for the row to
+ * naturally reset when week_start rolls over on Sunday.
+ */
+export async function resetQuestionnaireResponse(clientId: string, weekStart: string) {
+  const supabase = supabaseAdmin();
+  const { error } = await supabase
+    .from("questionnaire_responses")
+    .delete()
+    .eq("client_id", clientId)
+    .eq("week_start", weekStart);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/client/${clientId}/questionnaire`);
+  revalidatePath(`/clients/${clientId}`);
   revalidatePath("/questionnaires");
 }

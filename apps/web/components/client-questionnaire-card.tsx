@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { resetQuestionnaireResponse } from "@/lib/actions/questionnaires";
 import type { QuestionnaireQuestion, QuestionnaireResponse } from "@dashboard-lior/shared";
 
 /**
@@ -11,11 +12,13 @@ import type { QuestionnaireQuestion, QuestionnaireResponse } from "@dashboard-li
  */
 export function ClientQuestionnaireCard({
   clientId,
+  weekStart,
   weekLabel,
   questions,
   response,
 }: {
   clientId: string;
+  weekStart: string;
   weekLabel: string;
   questions: QuestionnaireQuestion[];
   response: QuestionnaireResponse | null;
@@ -45,6 +48,12 @@ export function ClientQuestionnaireCard({
             );
           })}
           {questions.length === 0 && <p className="text-slate-500">התבנית ריקה — אין שאלות להציג.</p>}
+
+          <form action={resetQuestionnaireResponse.bind(null, clientId, weekStart)} className="pt-2">
+            <button type="submit" className="btn btn-secondary text-xs">
+              אפס שאלון השבוע (למילוי מחדש)
+            </button>
+          </form>
         </dl>
       ) : (
         <p className="text-sm text-slate-500">

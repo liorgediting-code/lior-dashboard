@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { submitQuestionnaireFromForm } from "@/lib/actions/questionnaires";
 import type { QuestionnaireQuestion, QuestionnaireResponse } from "@dashboard-lior/shared";
 
@@ -50,8 +53,34 @@ export function QuestionnaireFillForm({
   questions: QuestionnaireQuestion[];
   existingResponse: QuestionnaireResponse | null;
 }) {
+  const [missingLabel, setMissingLabel] = useState<string | null>(null);
+
+  /**
+   * Some in-app browsers (WhatsApp/Instagram/Facebook's built-in WebView) don't
+   * reliably enforce the native `required` attribute, especially on <select>,
+   * so a client could tap through an empty form there and have it silently
+   * save as "complete". This checks required fields with plain JS instead —
+   * that works regardless of the WebView's constraint-validation support —
+   * and blocks the submit (the server action also re-checks as a backstop).
+   */
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    const formData = new FormData(event.currentTarget);
+    for (const question of questions) {
+      if (!question.required) continue;
+      const raw = String(formData.get(`q_${question.id}`) ?? "").trim();
+      if (raw === "") {
+        event.preventDefault();
+        setMissingLabel(question.label);
+        return;
+      }
+    }
+    setMissingLabel(null);
+  }
+
   return (
-    <form action={submitQuestionnaireFromForm.bind(null, clientId)} className="card space-y-4">
+    <form action={submitQuestionnaireFromForm.bind(null, clientId)} onSubmit={handleSubmit} className="card space-y-4">
+      {missingLabel && <p className="text-sm text-red-600">נא למלא את השדה: {missingLabel}</p>}
+
       {questions.map((question) => (
         <QuestionField key={question.id} question={question} existing={existingResponse?.answers[question.id]} />
       ))}

@@ -1,6 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { QuestionnaireEditor } from "@/components/questionnaire-editor";
-import { saveTemplateFromForm, deleteClientTemplate } from "@/lib/actions/questionnaires";
+import { saveTemplateFromForm, deleteClientTemplate, resetQuestionnaireResponse } from "@/lib/actions/questionnaires";
 import { formatWeekRange, weekStartIso } from "@/lib/crm/questionnaire";
 import type { Client, QuestionnaireQuestion, QuestionnaireResponse, QuestionnaireTemplate } from "@dashboard-lior/shared";
 
@@ -105,7 +105,14 @@ export default async function QuestionnairesPage() {
                 <h3 className="font-semibold">{client.name}</h3>
                 {override ? <span className="badge badge-insufficient">תבנית ייעודית</span> : <span className="badge badge-neutral">תבנית גלובלית</span>}
                 {submittedThisWeek.has(client.id) ? (
-                  <span className="badge badge-winner">מילא השבוע</span>
+                  <>
+                    <span className="badge badge-winner">מילא השבוע</span>
+                    <form action={resetQuestionnaireResponse.bind(null, client.id, thisWeek)}>
+                      <button type="submit" className="btn btn-secondary text-xs">
+                        אפס למילוי מחדש
+                      </button>
+                    </form>
+                  </>
                 ) : (
                   <span className="badge badge-kill">לא מילא השבוע</span>
                 )}
