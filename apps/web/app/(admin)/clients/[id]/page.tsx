@@ -206,6 +206,7 @@ export default async function ClientProfilePage({
             <div className="xl:col-span-2">
               <ClientFormsCard
                 clientId={c.id}
+                clientName={c.name}
                 templates={formTemplates}
                 submissions={formSubmissions}
                 baseUrl={baseUrl}

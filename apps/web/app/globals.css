@@ -35,6 +35,21 @@ body {
 .badge-insufficient {
   @apply bg-slate-100 text-slate-600 ring-slate-200;
 }
+.badge-neutral {
+  @apply bg-slate-100 text-slate-600 ring-slate-200;
+}
+.badge-blue {
+  @apply bg-blue-50 text-blue-700 ring-blue-200;
+}
+.badge-purple {
+  @apply bg-purple-50 text-purple-700 ring-purple-200;
+}
+.badge-teal {
+  @apply bg-teal-50 text-teal-700 ring-teal-200;
+}
+.badge-rose {
+  @apply bg-rose-50 text-rose-700 ring-rose-200;
+}
 
 /* ---------- cards ---------- */
 .card {

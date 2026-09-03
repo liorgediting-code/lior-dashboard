@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { sendFormFromForm } from "@/lib/actions/forms";
+import { buildSubmissionMarkdown } from "@/lib/forms/export-markdown";
+import { CopyTextButton } from "@/components/copy-text-button";
 import { INTAKE_FORM_SLUG } from "@dashboard-lior/shared";
 import type { FormSubmission, FormTemplate } from "@dashboard-lior/shared";
 
@@ -10,11 +12,13 @@ import type { FormSubmission, FormTemplate } from "@dashboard-lior/shared";
  */
 export function ClientFormsCard({
   clientId,
+  clientName,
   templates,
   submissions,
   baseUrl,
 }: {
   clientId: string;
+  clientName: string;
   templates: FormTemplate[];
   submissions: FormSubmission[];
   baseUrl: string;
@@ -87,14 +91,38 @@ export function ClientFormsCard({
                   </code>
 
                   {submitted && template && (
-                    <dl className="space-y-2 text-sm">
-                      {template.questions.map((question) => (
-                        <div key={question.id}>
-                          <dt className="text-slate-500">{question.label}</dt>
-                          <dd className="whitespace-pre-wrap font-medium">{submission.answers[question.id] ?? "—"}</dd>
-                        </div>
-                      ))}
-                    </dl>
+                    <>
+                      {/* Built on the server so the copy button has the text
+                          in hand at click time — see CopyTextButton. */}
+                      <div className="mb-3 flex flex-wrap items-center gap-2">
+                        <a
+                          className="btn btn-secondary text-xs"
+                          href={`/api/clients/${clientId}/form-export?template=${submission.template_id}`}
+                        >
+                          ⬇ הורד כמסמך
+                        </a>
+                        <CopyTextButton
+                          text={buildSubmissionMarkdown({
+                            clientName,
+                            templateName: template.name,
+                            submittedAt: submission.submitted_at,
+                            questions: template.questions,
+                            answers: submission.answers,
+                          })}
+                          label="העתק את המסמך"
+                        />
+                        <span className="text-xs text-slate-400">להעברה לסוכן האסטרטגיה</span>
+                      </div>
+
+                      <dl className="space-y-2 text-sm">
+                        {template.questions.map((question) => (
+                          <div key={question.id}>
+                            <dt className="text-slate-500">{question.label}</dt>
+                            <dd className="whitespace-pre-wrap font-medium">{submission.answers[question.id] ?? "—"}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </>
                   )}
                 </div>
               </details>

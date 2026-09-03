@@ -1,23 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type { MouseEvent } from "react";
 import type { AgencyLead, AgencyLeadStatus } from "@dashboard-lior/shared";
 import { updateAgencyLeadField, updateAgencyLeadStatus, deleteAgencyLead } from "@/lib/actions/agency-leads";
 
-export const AGENCY_STATUS_LABEL: Record<AgencyLeadStatus, string> = {
-  new: "חדש",
-  contacted: "יצרנו קשר",
-  meeting: "פגישה",
-  proposal: "הצעת מחיר",
-  won: "נסגר ✅",
-  lost: "לא רלוונטי",
-};
-
 const STATUS_BADGE_CLASS: Record<AgencyLeadStatus, string> = {
-  new: "badge-neutral",
-  contacted: "badge-neutral",
-  meeting: "badge-insufficient",
-  proposal: "badge-insufficient",
+  new: "badge-blue",
+  contacted: "badge-suspect",
+  meeting: "badge-purple",
+  proposal: "badge-teal",
   won: "badge-winner",
   lost: "badge-kill",
 };
@@ -26,6 +18,8 @@ const STATUS_ORDER: AgencyLeadStatus[] = ["new", "contacted", "meeting", "propos
 
 /** won/lost are terminal — an overdue follow-up on them isn't actionable. */
 const OPEN_STATUSES: AgencyLeadStatus[] = ["new", "contacted", "meeting", "proposal"];
+
+type StatusLabels = Record<AgencyLeadStatus, string>;
 
 type SortOption = "created_desc" | "follow_up_asc" | "deal_value_desc";
 
@@ -80,10 +74,113 @@ function EditableCell({
   );
 }
 
-export function AgencyCrmTable({ leads }: { leads: AgencyLead[] }) {
+function AgencyLeadProfilePanel({
+  lead,
+  statusLabels,
+  onClose,
+}: {
+  lead: AgencyLead;
+  statusLabels: StatusLabels;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <div className="absolute inset-0 bg-slate-900/30" onClick={onClose} />
+      <div className="animate-in relative flex h-full w-full max-w-sm flex-col overflow-y-auto bg-white p-3 shadow-xl">
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-base font-bold">{lead.name || "ליד ללא שם"}</h2>
+          <button type="button" className="btn btn-secondary text-xs" onClick={onClose}>
+            ✕ סגור
+          </button>
+        </div>
+
+        <div className="mb-3 space-y-2 rounded-lg border border-slate-200 p-2">
+          <div>
+            <p className="label">שם</p>
+            <EditableCell value={lead.name} onSave={(v) => updateAgencyLeadField(lead.id, "name", v)} />
+          </div>
+          <div>
+            <p className="label">עסק</p>
+            <EditableCell value={lead.business_name ?? ""} onSave={(v) => updateAgencyLeadField(lead.id, "business_name", v)} />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <p className="label">טלפון</p>
+              <EditableCell value={lead.phone ?? ""} onSave={(v) => updateAgencyLeadField(lead.id, "phone", v)} />
+            </div>
+            <div>
+              <p className="label">אימייל</p>
+              <EditableCell value={lead.email ?? ""} onSave={(v) => updateAgencyLeadField(lead.id, "email", v)} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <p className="label">סטטוס</p>
+              <select
+                className={`badge ${STATUS_BADGE_CLASS[lead.status]}`}
+                value={lead.status}
+                onChange={(e) => updateAgencyLeadStatus(lead.id, e.target.value as AgencyLeadStatus)}
+              >
+                {STATUS_ORDER.map((status) => (
+                  <option key={status} value={status}>
+                    {statusLabels[status]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <p className="label">מקור</p>
+              <EditableCell value={lead.source ?? ""} onSave={(v) => updateAgencyLeadField(lead.id, "source", v)} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <p className="label">שווי עסקה</p>
+              <EditableCell
+                value={lead.deal_value != null ? String(lead.deal_value) : ""}
+                type="number"
+                onSave={(v) => updateAgencyLeadField(lead.id, "deal_value", v)}
+              />
+            </div>
+            <div>
+              <p className="label">תאריך מעקב</p>
+              <EditableCell value={lead.follow_up_at ?? ""} type="date" onSave={(v) => updateAgencyLeadField(lead.id, "follow_up_at", v)} />
+            </div>
+          </div>
+          <div>
+            <p className="label">הערות</p>
+            <EditableCell value={lead.notes ?? ""} onSave={(v) => updateAgencyLeadField(lead.id, "notes", v)} />
+          </div>
+          <p className="text-xs text-slate-400">
+            נוצר ב־{new Date(lead.created_at).toLocaleString("he-IL", { dateStyle: "short", timeStyle: "short" })}
+          </p>
+        </div>
+
+        <button type="button" className="btn btn-primary mt-3 text-xs" onClick={onClose}>
+          שמור שינויים
+        </button>
+        <button
+          type="button"
+          className="btn btn-danger mt-2 text-xs"
+          onClick={() => {
+            if (confirm(`אתה בטוח שאתה רוצה למחוק את הליד "${lead.name}"?`)) {
+              deleteAgencyLead(lead.id);
+              onClose();
+            }
+          }}
+        >
+          ✕ מחיקת ליד
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function AgencyCrmTable({ leads, statusLabels }: { leads: AgencyLead[]; statusLabels: StatusLabels }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<AgencyLeadStatus | "all" | "open">("all");
   const [sort, setSort] = useState<SortOption>("created_desc");
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -112,6 +209,8 @@ export function AgencyCrmTable({ leads }: { leads: AgencyLead[] }) {
     });
   }, [leads, search, statusFilter, sort]);
 
+  const selectedLead = selectedLeadId ? (leads.find((l) => l.id === selectedLeadId) ?? null) : null;
+
   return (
     <div>
       <div className="mb-3 flex flex-wrap gap-2">
@@ -126,7 +225,7 @@ export function AgencyCrmTable({ leads }: { leads: AgencyLead[] }) {
           <option value="open">פתוחים בלבד</option>
           {STATUS_ORDER.map((status) => (
             <option key={status} value={status}>
-              {AGENCY_STATUS_LABEL[status]}
+              {statusLabels[status]}
             </option>
           ))}
         </select>
@@ -156,25 +255,30 @@ export function AgencyCrmTable({ leads }: { leads: AgencyLead[] }) {
           <tbody>
             {visible.map((lead) => {
               const overdue = lead.follow_up_at != null && lead.follow_up_at <= today && OPEN_STATUSES.includes(lead.status);
+              const stopRowClick = (e: MouseEvent) => e.stopPropagation();
 
               return (
-                <tr key={lead.id} className="border-b border-slate-100 last:border-0 align-top">
-                  <td className="px-3 py-2 font-medium">
+                <tr
+                  key={lead.id}
+                  className="cursor-pointer border-b border-slate-100 align-top last:border-0 hover:bg-slate-50"
+                  onClick={() => setSelectedLeadId(lead.id)}
+                >
+                  <td className="px-3 py-2 font-medium" onClick={stopRowClick}>
                     <EditableCell value={lead.name} onSave={(v) => updateAgencyLeadField(lead.id, "name", v)} />
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2" onClick={stopRowClick}>
                     <EditableCell value={lead.business_name ?? ""} onSave={(v) => updateAgencyLeadField(lead.id, "business_name", v)} />
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2" onClick={stopRowClick}>
                     <EditableCell value={lead.phone ?? ""} onSave={(v) => updateAgencyLeadField(lead.id, "phone", v)} />
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2" onClick={stopRowClick}>
                     <EditableCell value={lead.email ?? ""} onSave={(v) => updateAgencyLeadField(lead.id, "email", v)} />
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2" onClick={stopRowClick}>
                     <EditableCell value={lead.source ?? ""} onSave={(v) => updateAgencyLeadField(lead.id, "source", v)} />
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2" onClick={stopRowClick}>
                     <select
                       className={`badge ${STATUS_BADGE_CLASS[lead.status]} cursor-pointer border-0`}
                       value={lead.status}
@@ -182,26 +286,29 @@ export function AgencyCrmTable({ leads }: { leads: AgencyLead[] }) {
                     >
                       {STATUS_ORDER.map((status) => (
                         <option key={status} value={status}>
-                          {AGENCY_STATUS_LABEL[status]}
+                          {statusLabels[status]}
                         </option>
                       ))}
                     </select>
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2" onClick={stopRowClick}>
                     <EditableCell type="number" value={lead.deal_value != null ? String(lead.deal_value) : ""} onSave={(v) => updateAgencyLeadField(lead.id, "deal_value", v)} />
                   </td>
-                  <td className={`px-3 py-2 ${overdue ? "font-semibold text-red-600" : ""}`}>
+                  <td className={`px-3 py-2 ${overdue ? "font-semibold text-red-600" : ""}`} onClick={stopRowClick}>
                     <EditableCell type="date" value={lead.follow_up_at ?? ""} onSave={(v) => updateAgencyLeadField(lead.id, "follow_up_at", v)} />
                   </td>
-                  <td className="max-w-[16rem] px-3 py-2 text-slate-600">
+                  <td className="max-w-[16rem] px-3 py-2 text-slate-600" onClick={stopRowClick}>
                     <EditableCell value={lead.notes ?? ""} onSave={(v) => updateAgencyLeadField(lead.id, "notes", v)} />
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2" onClick={stopRowClick}>
+                    <button type="button" className="ml-2 text-xs text-slate-400 hover:text-slate-700" onClick={() => setSelectedLeadId(lead.id)}>
+                      פרטים ›
+                    </button>
                     <button
                       type="button"
                       className="text-xs text-slate-400 hover:text-red-600"
                       onClick={() => {
-                        if (confirm(`למחוק את הליד "${lead.name}"?`)) deleteAgencyLead(lead.id);
+                        if (confirm(`אתה בטוח שאתה רוצה למחוק את הליד "${lead.name}"?`)) deleteAgencyLead(lead.id);
                       }}
                     >
                       מחק
@@ -220,6 +327,8 @@ export function AgencyCrmTable({ leads }: { leads: AgencyLead[] }) {
           </tbody>
         </table>
       </div>
+
+      {selectedLead && <AgencyLeadProfilePanel lead={selectedLead} statusLabels={statusLabels} onClose={() => setSelectedLeadId(null)} />}
     </div>
   );
 }

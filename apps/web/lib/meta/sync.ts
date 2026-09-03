@@ -76,21 +76,32 @@ async function findOrCreateAd(adsetId: string, metaId: string, name: string) {
  * box; against the real one once a system-level Meta token is configured
  * on /settings and the client has a `meta_ad_account_id` set.
  */
-export async function syncClientAdMetrics(clientId: string, lookbackDays = 3) {
+export async function syncClientAdMetrics(clientId: string, lookbackDays = 3): Promise<{ clientId: string; synced: number; skipped?: string }> {
   const supabase = supabaseAdmin();
   const [{ data: client }, { data: settings }] = await Promise.all([
-    supabase.from("clients").select("meta_ad_account_id").eq("id", clientId).single(),
+    supabase.from("clients").select("meta_ad_account_id, meta_access_token").eq("id", clientId).single(),
     supabase.from("app_settings").select("meta_system_user_token").eq("id", 1).maybeSingle(),
   ]);
 
   const meta = getMetaClient();
   const useMock = process.env.META_USE_MOCK !== "false";
   const adAccountId = useMock ? "act_mock123" : (client?.meta_ad_account_id as string | null);
-  const accessToken = useMock ? "mock" : (settings?.meta_system_user_token as string | null);
 
-  if (!adAccountId || !accessToken) {
-    return { clientId, synced: 0, skipped: "no Meta connection configured yet" };
-  }
+  // A client's own token wins over the agency-wide system-user token.
+  //
+  // Reading an ad account needs the token's system user to be ASSIGNED to
+  // that account, which a token with ads_read in its scopes still is not —
+  // an unassigned account answers "(#200) Ad account owner has NOT grant
+  // ads_management or ads_read permission" regardless. Getting there via
+  // Business Manager means the client shares the account with the agency's
+  // business as a partner; when they will not or cannot, pasting a token
+  // minted inside their OWN business on the client's edit page is the
+  // second door, and this is what opens it.
+  const clientToken = (client?.meta_access_token as string | null)?.trim() || null;
+  const accessToken = useMock ? "mock" : clientToken ?? (settings?.meta_system_user_token as string | null);
+
+  if (!adAccountId) return { clientId, synced: 0, skipped: "לא הוגדר חשבון מודעות (Meta Ad Account ID) ללקוח" };
+  if (!accessToken) return { clientId, synced: 0, skipped: "אין טוקן Meta — הגדירו System User Token ב/settings או טוקן ייעודי ללקוח" };
 
   const since = isoDaysAgo(lookbackDays);
   const until = isoDaysAgo(0);
@@ -121,6 +132,15 @@ export async function syncClientAdMetrics(clientId: string, lookbackDays = 3) {
         leads: insight.leads,
         impressions: insight.impressions,
         clicks: insight.clicks,
+        reach: insight.reach,
+        link_clicks: insight.linkClicks,
+        three_sec_video_views: insight.threeSecVideoViews,
+        video_50_watched: insight.video50Watched,
+        video_75_watched: insight.video75Watched,
+        video_completed: insight.videoCompleted,
+        purchases: insight.purchases,
+        add_to_cart: insight.addToCart,
+        revenue: insight.revenue,
       },
       { onConflict: "ad_id,date" }
     );
@@ -130,12 +150,36 @@ export async function syncClientAdMetrics(clientId: string, lookbackDays = 3) {
   return { clientId, synced };
 }
 
-export async function syncAllClients(lookbackDays = 3) {
+export type ClientSyncResult = {
+  clientId: string;
+  clientName: string;
+  synced: number;
+  skipped?: string;
+  error?: string;
+};
+
+/**
+ * One client's failure must not sink the run. Ad accounts drift out of a
+ * Business Manager, tokens get rotated, a single client's account 400s — and
+ * with a bare `for` loop that one throw would discard the other nine clients'
+ * freshly fetched metrics AND leave the operator with a generic error that
+ * names nobody. Each result carries its own outcome instead.
+ */
+export async function syncAllClients(lookbackDays = 3): Promise<ClientSyncResult[]> {
   const supabase = supabaseAdmin();
-  const { data: clients } = await supabase.from("clients").select("id");
-  const results = [];
+  const { data: clients } = await supabase.from("clients").select("id, name");
+  const results: ClientSyncResult[] = [];
+
   for (const client of clients ?? []) {
-    results.push(await syncClientAdMetrics(client.id as string, lookbackDays));
+    const clientId = client.id as string;
+    const clientName = (client.name as string) ?? "לקוח";
+    try {
+      const result = await syncClientAdMetrics(clientId, lookbackDays);
+      results.push({ clientId, clientName, synced: result.synced, skipped: result.skipped });
+    } catch (err) {
+      results.push({ clientId, clientName, synced: 0, error: err instanceof Error ? err.message : String(err) });
+    }
   }
+
   return results;
 }

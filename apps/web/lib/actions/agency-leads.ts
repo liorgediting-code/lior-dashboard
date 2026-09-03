@@ -107,3 +107,23 @@ export async function deleteAgencyLead(id: string) {
 
   revalidatePath("/agency-crm");
 }
+
+/**
+ * The 6 agency_leads.status values are fixed (see the phase15 migration
+ * comment), but the label shown for each is stored in
+ * agency_lead_status_labels so the agency owner can rename them the same
+ * way per-client statuses are renamable in CrmManagePanel.
+ */
+export async function renameAgencyLeadStatus(status: AgencyLeadStatus, label: string) {
+  const trimmed = label.trim();
+  if (!trimmed) return;
+
+  const supabase = supabaseAdmin();
+  const { error } = await supabase
+    .from("agency_lead_status_labels")
+    .update({ label: trimmed, updated_at: new Date().toISOString() })
+    .eq("status", status);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/agency-crm");
+}

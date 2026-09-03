@@ -37,6 +37,7 @@ import type {
   ClientPayment,
   Goal,
   AgencyLead,
+  AgencyLeadStatusLabel,
   Funnel,
   FunnelCampaign,
   Note,
@@ -49,6 +50,7 @@ import type {
   VideoComment,
   FormTemplate,
   FormSubmission,
+  DiagnosticThresholds,
 } from "./domain";
 
 // supabase-js's GenericTable/GenericView require a `Relationships` array
@@ -84,6 +86,7 @@ export type Database = {
       adsets: Table<AdSet>;
       ads: Table<Ad>;
       ad_metrics_daily: Table<AdMetricDaily>;
+      diagnostic_thresholds: Table<DiagnosticThresholds, ClientFk<"diagnostic_thresholds">>;
       business_type_benchmarks: Table<BusinessTypeBenchmark>;
       cpl_threshold_history: Table<CplThresholdHistoryRow>;
       kill_queue_items: Table<KillQueueItem, ClientFk<"kill_queue_items">>;
@@ -134,6 +137,7 @@ export type Database = {
       client_payments: Table<ClientPayment, ClientFk<"client_payments">>;
       goals: Table<Goal>;
       agency_leads: Table<AgencyLead>;
+      agency_lead_status_labels: Table<AgencyLeadStatusLabel>;
       funnels: Table<Funnel, ClientFk<"funnels">>;
       funnel_campaigns: Table<
         FunnelCampaign,

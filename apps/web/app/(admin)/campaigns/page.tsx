@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { CampaignCrmToggles } from "@/components/campaign-crm-toggles";
+import { CampaignsSyncButton } from "@/components/campaigns-sync-button";
 import { fetchAllCampaigns, fetchCampaignStats } from "@/lib/metrics/fetch-stats";
 import { trailingDays } from "@/lib/metrics/campaign-stats";
 import { campaignActivity, formatCampaignStatus, type CampaignActivity } from "@/lib/metrics/campaign-status";
@@ -80,7 +81,10 @@ export default async function CampaignsPage({ searchParams }: { searchParams: { 
 
   return (
     <div>
-      <h1 className="mb-1 text-2xl font-bold">קמפיינים</h1>
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold">קמפיינים</h1>
+        <CampaignsSyncButton />
+      </div>
       <p className="mb-4 text-sm text-slate-500">
         כל הקמפיינים של כל הלקוחות · {WINDOW_DAYS} הימים האחרונים · סמנו קמפיין כדי שהדשבורד שלו יופיע ב-CRM
       </p>

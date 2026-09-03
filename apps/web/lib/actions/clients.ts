@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { dispatchWebhook } from "@/lib/notifications/dispatch-webhook";
 import { parseDriveFolderId } from "@/lib/videos/drive-folder";
+import { ensureFormLink } from "@/lib/actions/forms";
+import { INTAKE_FORM_SLUG } from "@dashboard-lior/shared";
 import type { DriveLink } from "@dashboard-lior/shared";
 
 export interface CreateClientInput {
@@ -82,8 +84,40 @@ export async function createClient(input: CreateClientInput) {
 
   await dispatchWebhook("client_created_questionnaire", { clientId: client.id, clientName: client.name });
 
+  const intakeUrl = await issueIntakeLink(client.id as string);
+
   revalidatePath("/clients");
-  redirect(`/clients/${client.id}`);
+  // The profile page already renders a banner for ?formLink, so handing the
+  // url over this way needs no new UI — the agency lands on the new client
+  // with the link ready to paste into WhatsApp.
+  redirect(intakeUrl ? `/clients/${client.id}?formLink=${encodeURIComponent(intakeUrl)}` : `/clients/${client.id}`);
+}
+
+/**
+ * Mints the new client's link to the built-in intake form ("טופס אפיון") —
+ * the strategy questionnaire whose first submission also moves them from SOP
+ * stage 0 to 1.
+ *
+ * Returns null instead of throwing when anything goes wrong: a client whose
+ * questionnaire link failed to mint is recoverable in one click from the
+ * forms card on their profile, but a client whose CREATION failed at this
+ * point would already have rows in five tables and no way to finish.
+ */
+async function issueIntakeLink(clientId: string): Promise<string | null> {
+  try {
+    const supabase = supabaseAdmin();
+    const { data: template } = await supabase
+      .from("form_templates")
+      .select("id")
+      .eq("slug", INTAKE_FORM_SLUG)
+      .maybeSingle();
+    if (!template) return null;
+
+    const { url } = await ensureFormLink(clientId, template.id as string);
+    return url;
+  } catch {
+    return null;
+  }
 }
 
 export interface UpdateClientInput {
@@ -98,6 +132,7 @@ export interface UpdateClientInput {
   price_range_high?: number | null;
   profit_ratio?: number;
   meta_ad_account_id?: string | null;
+  meta_access_token?: string | null;
   drive_links?: DriveLink[];
   strategy_call_recording_url?: string | null;
   strategy_call_transcript_url?: string | null;
@@ -163,6 +198,7 @@ export async function updateClientFromForm(clientId: string, formData: FormData)
     price_range_high: numOrNull(formData, "price_range_high"),
     profit_ratio: numOrNull(formData, "profit_ratio") ?? 5,
     meta_ad_account_id: String(formData.get("meta_ad_account_id") ?? "").trim() || null,
+    meta_access_token: String(formData.get("meta_access_token") ?? "").trim() || null,
     drive_links: driveLinks,
     strategy_call_recording_url: String(formData.get("strategy_call_recording_url") ?? "") || null,
     strategy_call_transcript_url: String(formData.get("strategy_call_transcript_url") ?? "") || null,

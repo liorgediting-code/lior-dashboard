@@ -20,12 +20,8 @@ export function InstagramSyncButton() {
         onClick={() =>
           startTransition(async () => {
             setMessage(null);
-            try {
-              const result = await syncInstagramNow();
-              setMessage(`עודכנו ${result.dailyRows} ימים ו-${result.mediaCount} פוסטים`);
-            } catch (err) {
-              setMessage(err instanceof Error ? err.message : "הסנכרון נכשל");
-            }
+            const result = await syncInstagramNow();
+            setMessage(result.ok ? `עודכנו ${result.dailyRows} ימים ו-${result.mediaCount} פוסטים` : result.error);
           })
         }
       >

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { TokenField } from "@/components/token-field";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { updateClientFromForm } from "@/lib/actions/clients";
 import { createClientPaymentFromForm, deleteClientPayment } from "@/lib/actions/client-payments";
@@ -119,8 +120,8 @@ export default async function EditClientPage({ params }: { params: { id: string 
         <div className="card space-y-4">
           <h2 className="font-semibold">חיבור Meta Ads</h2>
           <p className="text-sm text-slate-500">
-            הטוקן המערכתי מוגדר במסך <a href="/settings" className="underline">ההגדרות</a>. כאן קובעים רק לאיזה חשבון פרסום
-            של הלקוח הזה להתחבר.
+            הטוקן המערכתי מוגדר במסך <a href="/settings" className="underline">ההגדרות</a>. כאן קובעים לאיזה חשבון פרסום
+            של הלקוח הזה להתחבר — ואפשר גם טוקן ייעודי, אם החשבון שלו לא משותף עם ה-Business Manager שלנו.
           </p>
           <div>
             <label className="label" htmlFor="meta_ad_account_id">
@@ -133,6 +134,23 @@ export default async function EditClientPage({ params }: { params: { id: string 
               placeholder="act_1234567890"
               defaultValue={c.meta_ad_account_id ?? ""}
             />
+            <p className="mt-1 text-xs text-slate-400">אפשר עם או בלי הקידומת act_ — הסנכרון מוסיף אותה לבד.</p>
+          </div>
+          <div>
+            <label className="label" htmlFor="meta_access_token">
+              טוקן Meta ייעודי ללקוח (אופציונלי)
+            </label>
+            <TokenField name="meta_access_token" defaultValue={c.meta_access_token ?? ""} />
+            {/* The escape hatch from the Business-Manager dance: reading an ad
+                account requires the token's system user to be ASSIGNED to it,
+                which a token holding ads_read in its scopes still is not. When
+                a client will not share their account with our BM, a token
+                minted inside THEIR business goes here and wins over the global
+                one. */}
+            <p className="mt-1 text-xs text-slate-400">
+              אם מוגדר — הסנכרון ישתמש בו במקום בטוקן המערכתי. שימושי כשחשבון המודעות של הלקוח לא משותף כשותף
+              ל-Business Manager שלנו.
+            </p>
           </div>
         </div>
 

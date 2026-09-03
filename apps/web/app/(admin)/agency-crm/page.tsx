@@ -1,14 +1,24 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { AgencyCrmTable } from "@/components/agency-crm-table";
+import { AgencyStatusLabelsPanel } from "@/components/agency-status-labels-panel";
 import { CampaignCrmDashboard } from "@/components/campaign-crm-dashboard";
 import { CRM_CAMPAIGN_WINDOW_DAYS, fetchCrmCampaignDashboard } from "@/lib/metrics/crm-campaigns";
 import { createAgencyLeadFromForm } from "@/lib/actions/agency-leads";
 import { formatCurrency, formatNumber } from "@/lib/format";
-import type { AgencyLead } from "@dashboard-lior/shared";
+import type { AgencyLead, AgencyLeadStatus, AgencyLeadStatusLabel } from "@dashboard-lior/shared";
 
 export const dynamic = "force-dynamic";
 
 const OPEN_STATUSES = ["new", "contacted", "meeting", "proposal"];
+const STATUS_ORDER: AgencyLeadStatus[] = ["new", "contacted", "meeting", "proposal", "won", "lost"];
+const DEFAULT_STATUS_LABELS: Record<AgencyLeadStatus, string> = {
+  new: "חדש",
+  contacted: "יצרנו קשר",
+  meeting: "פגישה",
+  proposal: "הצעת מחיר",
+  won: "נסגר ✅",
+  lost: "לא רלוונטי",
+};
 
 function monthStartIso(): string {
   const now = new Date();
@@ -26,11 +36,16 @@ function StatCard({ label, value }: { label: string; value: string }) {
 
 export default async function AgencyCrmPage() {
   const supabase = supabaseAdmin();
-  const [{ data }, pinnedCampaigns] = await Promise.all([
+  const [{ data }, { data: labelRows }, pinnedCampaigns] = await Promise.all([
     supabase.from("agency_leads").select("*").order("created_at", { ascending: false }),
+    supabase.from("agency_lead_status_labels").select("*"),
     fetchCrmCampaignDashboard(supabase, "agency"),
   ]);
   const leads = (data ?? []) as AgencyLead[];
+  const statusLabels = { ...DEFAULT_STATUS_LABELS };
+  for (const row of (labelRows ?? []) as AgencyLeadStatusLabel[]) {
+    statusLabels[row.status] = row.label;
+  }
 
   const today = new Date().toISOString().slice(0, 10);
   const monthStart = monthStartIso();
@@ -75,12 +90,11 @@ export default async function AgencyCrmPage() {
           <input className="input" name="email" type="email" placeholder="מייל" />
           <input className="input" name="source" placeholder="מקור (המלצה, אינסטגרם…)" />
           <select className="input" name="status" defaultValue="new">
-            <option value="new">חדש</option>
-            <option value="contacted">יצרנו קשר</option>
-            <option value="meeting">פגישה</option>
-            <option value="proposal">הצעת מחיר</option>
-            <option value="won">נסגר ✅</option>
-            <option value="lost">לא רלוונטי</option>
+            {STATUS_ORDER.map((status) => (
+              <option key={status} value={status}>
+                {statusLabels[status]}
+              </option>
+            ))}
           </select>
           <input className="input" name="deal_value" type="number" step="any" min="0" placeholder="שווי עסקה (₪)" />
           <input className="input" name="follow_up_at" type="date" title="תאריך מעקב" />
@@ -91,7 +105,9 @@ export default async function AgencyCrmPage() {
         </button>
       </form>
 
-      <AgencyCrmTable leads={leads} />
+      <AgencyStatusLabelsPanel statusLabels={statusLabels} />
+
+      <AgencyCrmTable leads={leads} statusLabels={statusLabels} />
     </div>
   );
 }

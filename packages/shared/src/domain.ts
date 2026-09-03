@@ -102,6 +102,34 @@ export type Campaign = {
   show_in_agency_crm: boolean;
   /** Pins it onto the client's CRM — both the agency-side tab and the client portal. */
   show_in_client_crm: boolean;
+  /** What the business can afford to pay per conversion. Null until an operator sets it; the CPA gate stays silent without it. */
+  target_cpa: number | null;
+  /** Which column counts as a conversion for this campaign's funnel. */
+  conversion_goal: ConversionGoal;
+};
+
+export type ConversionGoal = "leads" | "purchases";
+
+/**
+ * Per-client overrides for the diagnostic thresholds. Every numeric column
+ * is nullable and null means "inherit" — a client row falls back to the
+ * global row (client_id null), which falls back to the code defaults in
+ * lib/diagnostics/rules.ts.
+ */
+export type DiagnosticThresholds = {
+  id: string;
+  client_id: string | null;
+  hook_rate: number | null;
+  hold_rate: number | null;
+  ctr_link_click: number | null;
+  cpc_account_multiple: number | null;
+  landing_page_conversion_rate: number | null;
+  frequency: number | null;
+  cpm_account_multiple: number | null;
+  min_impressions: number | null;
+  min_spend: number | null;
+  min_days_active: number | null;
+  updated_at: string;
 };
 
 export type AdSet = {
@@ -130,6 +158,21 @@ export type AdMetricDaily = {
   impressions: number;
   clicks: number;
   cpl: number | null;
+  /**
+   * People reached that day. NOT additive across days — summing a month of
+   * reach double-counts everyone who saw the ad twice, so a summed reach is
+   * an upper bound. lib/diagnostics/engine.ts relies on that direction.
+   */
+  reach: number;
+  /** Link clicks alone. `clicks` above is all_clicks (likes, profile taps, …) and runs several times higher. */
+  link_clicks: number;
+  three_sec_video_views: number;
+  video_50_watched: number;
+  video_75_watched: number;
+  video_completed: number;
+  purchases: number;
+  add_to_cart: number;
+  revenue: number;
 };
 
 export type BusinessTypeBenchmark = {
@@ -382,6 +425,13 @@ export type AgencyLead = {
   follow_up_at: string | null;
   closed_at: string | null;
   created_at: string;
+  updated_at: string;
+};
+
+/** Renamable label for one of the fixed agency_leads.status values — the pipeline itself isn't customizable, just its display text. */
+export type AgencyLeadStatusLabel = {
+  status: AgencyLeadStatus;
+  label: string;
   updated_at: string;
 };
 

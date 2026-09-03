@@ -23,6 +23,11 @@ function seededRandom(seed: string) {
 // create a second adset and ad under the same campaign in any DB that was
 // ever mock-synced — and fetchCampaignStats sums every ad under a campaign,
 // so the overlapping lookback days would be counted twice.
+//
+// The `profile` on each entry drives the funnel ratios below. They differ so
+// the diagnostic engine has something to say in a mock-only demo: with one
+// uniformly healthy campaign, /ad-analysis would render an empty page and
+// read as broken rather than as "nothing is wrong".
 const MOCK_CAMPAIGNS = [
   {
     campaignId: "mock-campaign-1",
@@ -32,6 +37,8 @@ const MOCK_CAMPAIGNS = [
     adsetName: "סט לדוגמה",
     adId: "mock-ad-1",
     adName: "מודעה לדוגמה 1",
+    /** Passes every gate. */
+    profile: { hookRate: 0.26, holdRate: 0.42, ctr: 0.021, lpConversion: 0.14, frequency: 1.8 },
   },
   {
     campaignId: "mock-campaign-2",
@@ -41,6 +48,8 @@ const MOCK_CAMPAIGNS = [
     adsetName: "סט מושהה",
     adId: "mock-ad-2",
     adName: "מודעה לדוגמה 2",
+    /** Fails at the hook, and everything downstream of it. */
+    profile: { hookRate: 0.11, holdRate: 0.22, ctr: 0.006, lpConversion: 0.05, frequency: 3.9 },
   },
 ];
 
@@ -60,6 +69,17 @@ export class MockMetaClient implements MetaClient {
         // recently. Zeroing it entirely would make the inactive row look
         // like a bug rather than a paused campaign.
         const paused = campaign.status !== "ACTIVE";
+        const { profile } = campaign;
+        const impressions = Math.round(500 + rand() * (paused ? 1200 : 5000));
+        // Every count below is DERIVED from impressions and the campaign's
+        // profile rather than rolled independently, so the funnel ratios the
+        // engine reads are stable instead of being whatever four unrelated
+        // random draws happened to produce that day.
+        const jitter = 0.85 + rand() * 0.3;
+        const threeSec = Math.round(impressions * profile.hookRate * jitter);
+        const linkClicks = Math.round(impressions * profile.ctr * jitter);
+        const leads = Math.round(linkClicks * profile.lpConversion);
+
         insights.push({
           adId: campaign.adId,
           adName: campaign.adName,
@@ -68,10 +88,20 @@ export class MockMetaClient implements MetaClient {
           campaignId: campaign.campaignId,
           campaignName: campaign.name,
           date,
-          spend: Math.round(rand() * (paused ? 40 : 150)),
-          leads: Math.round(rand() * (paused ? 2 : 5)),
-          impressions: Math.round(rand() * (paused ? 1200 : 5000)),
-          clicks: Math.round(rand() * (paused ? 25 : 100)),
+          spend: Math.round(impressions * (paused ? 0.02 : 0.03) * jitter),
+          leads,
+          impressions,
+          // all_clicks runs well above link clicks on real accounts.
+          clicks: Math.round(linkClicks * 2.6),
+          reach: Math.round(impressions / profile.frequency),
+          linkClicks,
+          threeSecVideoViews: threeSec,
+          video50Watched: Math.round(threeSec * profile.holdRate),
+          video75Watched: Math.round(threeSec * profile.holdRate * 0.6),
+          videoCompleted: Math.round(threeSec * profile.holdRate * 0.4),
+          purchases: 0,
+          addToCart: 0,
+          revenue: 0,
         });
       }
     }

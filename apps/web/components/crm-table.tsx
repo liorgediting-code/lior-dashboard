@@ -9,11 +9,16 @@ import type { ResolvedColumn } from "@/lib/crm/column-layout";
 
 type SortOption = "created_desc" | "follow_up_asc" | "deal_value_desc";
 
-const KIND_BADGE_CLASS: Record<LeadStatus["kind"], string> = {
-  open: "badge-insufficient",
-  won: "badge-winner",
-  lost: "badge-kill",
-};
+/** Rotated across open-kind statuses (by sort order) so distinct statuses read as distinct colors, not one flat gray. */
+const OPEN_BADGE_ROTATION = ["badge-blue", "badge-suspect", "badge-purple", "badge-teal", "badge-rose"];
+
+function statusBadgeClass(status: LeadStatus | undefined, sortedStatuses: LeadStatus[]): string {
+  if (!status) return "badge-insufficient";
+  if (status.kind === "won") return "badge-winner";
+  if (status.kind === "lost") return "badge-kill";
+  const openIndex = sortedStatuses.filter((s) => s.kind === "open").findIndex((s) => s.id === status.id);
+  return OPEN_BADGE_ROTATION[openIndex % OPEN_BADGE_ROTATION.length];
+}
 
 function EditableCell({
   value,
@@ -95,60 +100,66 @@ function LeadProfilePanel({
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-slate-900/30" onClick={onClose} />
-      <div className="animate-in relative flex h-full w-full max-w-md flex-col overflow-y-auto bg-white p-4 shadow-xl">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-bold">{lead.name || "ליד ללא שם"}</h2>
+      <div className="animate-in relative flex h-full w-full max-w-sm flex-col overflow-y-auto bg-white p-3 shadow-xl">
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-base font-bold">{lead.name || "ליד ללא שם"}</h2>
           <button type="button" className="btn btn-secondary text-xs" onClick={onClose}>
             ✕ סגור
           </button>
         </div>
 
-        <div className="mb-4 space-y-3 rounded-lg border border-slate-200 p-3">
+        <div className="mb-3 space-y-2 rounded-lg border border-slate-200 p-2">
           <div>
             <p className="label">שם</p>
             <EditableCell value={lead.name ?? ""} onSave={(v) => updateLeadField(lead.id, clientId, "name", v)} />
           </div>
-          <div>
-            <p className="label">טלפון</p>
-            <EditableCell value={lead.phone ?? ""} onSave={(v) => updateLeadField(lead.id, clientId, "phone", v)} />
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <p className="label">טלפון</p>
+              <EditableCell value={lead.phone ?? ""} onSave={(v) => updateLeadField(lead.id, clientId, "phone", v)} />
+            </div>
+            <div>
+              <p className="label">אימייל</p>
+              <EditableCell value={lead.email ?? ""} onSave={(v) => updateLeadField(lead.id, clientId, "email", v)} />
+            </div>
           </div>
-          <div>
-            <p className="label">אימייל</p>
-            <EditableCell value={lead.email ?? ""} onSave={(v) => updateLeadField(lead.id, clientId, "email", v)} />
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <p className="label">סטטוס</p>
+              <select
+                className={`badge ${statusBadgeClass(status, sortedStatuses)}`}
+                value={lead.status_id}
+                onChange={(e) => updateLeadStatus(lead.id, clientId, e.target.value)}
+              >
+                {sortedStatuses.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <p className="label">מקור</p>
+              <p className="text-sm text-slate-700">{sourceLabel}</p>
+            </div>
           </div>
-          <div>
-            <p className="label">סטטוס</p>
-            <select
-              className={`badge ${KIND_BADGE_CLASS[status?.kind ?? "open"]}`}
-              value={lead.status_id}
-              onChange={(e) => updateLeadStatus(lead.id, clientId, e.target.value)}
-            >
-              {sortedStatuses.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <p className="label">מקור</p>
-            <p className="text-sm text-slate-700">{sourceLabel}</p>
-          </div>
-          <div>
-            <p className="label">שווי עסקה</p>
-            <EditableCell
-              value={String(lead.deal_value ?? "")}
-              type="number"
-              onSave={(v) => updateLeadField(lead.id, clientId, "deal_value", v)}
-            />
-          </div>
-          <div>
-            <p className="label">תאריך מעקב</p>
-            <EditableCell
-              value={lead.follow_up_at ?? ""}
-              type="date"
-              onSave={(v) => updateLeadField(lead.id, clientId, "follow_up_at", v)}
-            />
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <p className="label">שווי עסקה</p>
+              <EditableCell
+                value={String(lead.deal_value ?? "")}
+                type="number"
+                onSave={(v) => updateLeadField(lead.id, clientId, "deal_value", v)}
+              />
+            </div>
+            <div>
+              <p className="label">תאריך מעקב</p>
+              <EditableCell
+                value={lead.follow_up_at ?? ""}
+                type="date"
+                onSave={(v) => updateLeadField(lead.id, clientId, "follow_up_at", v)}
+              />
+            </div>
           </div>
           {columns.map((col) => (
             <div key={col.id}>
@@ -167,12 +178,17 @@ function LeadProfilePanel({
 
         <LeadActivityPanel leadId={lead.id} clientId={clientId} activities={activities} />
 
+        <button type="button" className="btn btn-primary mt-3 text-xs" onClick={onClose}>
+          שמור שינויים
+        </button>
         <button
           type="button"
-          className="btn btn-danger mt-4 text-xs"
+          className="btn btn-danger mt-2 text-xs"
           onClick={() => {
-            deleteLead(lead.id, clientId);
-            onClose();
+            if (confirm(`אתה בטוח שאתה רוצה למחוק את הליד "${lead.name || "ללא שם"}"?`)) {
+              deleteLead(lead.id, clientId);
+              onClose();
+            }
           }}
         >
           ✕ מחיקת ליד
@@ -364,7 +380,7 @@ export function CrmTable({
                         <td key={col.key} className="px-3 py-2" onClick={stopRowClick}>
                           {inlineEdit ? (
                             <select
-                              className={`badge ${KIND_BADGE_CLASS[status?.kind ?? "open"]} cursor-pointer border-0`}
+                              className={`badge ${statusBadgeClass(status, sortedStatuses)} cursor-pointer border-0`}
                               value={lead.status_id}
                               onChange={(e) => updateLeadStatus(lead.id, clientId, e.target.value)}
                             >
@@ -375,7 +391,7 @@ export function CrmTable({
                               ))}
                             </select>
                           ) : (
-                            <span className={`badge ${KIND_BADGE_CLASS[status?.kind ?? "open"]}`}>{status?.label ?? "—"}</span>
+                            <span className={`badge ${statusBadgeClass(status, sortedStatuses)}`}>{status?.label ?? "—"}</span>
                           )}
                         </td>
                       );
@@ -434,9 +450,16 @@ export function CrmTable({
                 <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                   <button
                     type="button"
+                    className="ml-2 text-xs text-slate-400 hover:text-slate-700"
+                    onClick={() => setSelectedLeadId(lead.id)}
+                  >
+                    פרטים ›
+                  </button>
+                  <button
+                    type="button"
                     className="text-xs text-slate-400 hover:text-red-600"
                     onClick={() => {
-                      if (confirm(`למחוק את הליד "${lead.name || "ללא שם"}"?`)) deleteLead(lead.id, clientId);
+                      if (confirm(`אתה בטוח שאתה רוצה למחוק את הליד "${lead.name || "ללא שם"}"?`)) deleteLead(lead.id, clientId);
                     }}
                   >
                     מחק
