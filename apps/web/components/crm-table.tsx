@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import type { MouseEvent } from "react";
 import type { Lead, LeadStatus, LeadColumn, LeadActivity } from "@dashboard-lior/shared";
 import { updateLeadField, updateLeadStatus, deleteLead, createLeadFromForm } from "@/lib/actions/leads";
@@ -97,10 +98,14 @@ function LeadProfilePanel({
   const sortedStatuses = [...statuses].sort((a, b) => a.sort_order - b.sort_order);
   const status = sortedStatuses.find((s) => s.id === lead.status_id);
 
-  return (
+  // Portaled to <body> — a fixed-position child of <main> (which carries the
+  // permanent .animate-in transform) would be sized against main's full
+  // scroll height instead of the viewport, pushing this footer off-screen.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-slate-900/30" onClick={onClose} />
-      <div className="animate-in relative flex h-full w-full max-w-sm flex-col overflow-y-auto bg-white p-3 shadow-xl">
+      <div className="animate-in relative flex h-full w-full max-w-sm flex-col bg-white shadow-xl">
+      <div className="flex-1 overflow-y-auto p-3">
         <div className="mb-2 flex items-center justify-between">
           <h2 className="text-base font-bold">{lead.name || "ליד ללא שם"}</h2>
           <button type="button" className="btn btn-secondary text-xs" onClick={onClose}>
@@ -177,13 +182,15 @@ function LeadProfilePanel({
         </div>
 
         <LeadActivityPanel leadId={lead.id} clientId={clientId} activities={activities} />
+      </div>
 
-        <button type="button" className="btn btn-primary mt-3 text-xs" onClick={onClose}>
+      <div className="border-t border-slate-200 p-3">
+        <button type="button" className="btn btn-primary w-full text-xs" onClick={onClose}>
           שמור שינויים
         </button>
         <button
           type="button"
-          className="btn btn-danger mt-2 text-xs"
+          className="btn btn-danger mt-2 w-full text-xs"
           onClick={() => {
             if (confirm(`אתה בטוח שאתה רוצה למחוק את הליד "${lead.name || "ללא שם"}"?`)) {
               deleteLead(lead.id, clientId);
@@ -194,7 +201,9 @@ function LeadProfilePanel({
           ✕ מחיקת ליד
         </button>
       </div>
-    </div>
+      </div>
+    </div>,
+    document.body
   );
 }
 
@@ -312,9 +321,9 @@ export function CrmTable({
         </select>
       </div>
 
-      <div className="card overflow-x-auto p-0">
+      <div className="card sticky top-6 max-h-[calc(100vh-3rem)] overflow-auto p-0">
       <table className="w-full text-sm">
-        <thead className="border-b border-slate-200 bg-slate-50 text-right text-xs text-slate-500">
+        <thead className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 text-right text-xs text-slate-500">
           <tr>
             {visibleColumns.map((col) => (
               <th key={col.key} className="px-3 py-2 font-medium">

@@ -16,12 +16,26 @@ function formatTimestamp(iso: string) {
 
 export function LeadActivityPanel({ leadId, clientId, activities }: { leadId: string; clientId: string; activities: LeadActivity[] }) {
   const [kind, setKind] = useState<LeadActivityKind>("note");
+  const [open, setOpen] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const action = createLeadActivityFromForm.bind(null, leadId, clientId);
 
+  if (!open) {
+    return (
+      <button type="button" className="btn btn-secondary w-full text-xs" onClick={() => setOpen(true)}>
+        יומן פעילות ({activities.length})
+      </button>
+    );
+  }
+
   return (
     <div className="space-y-3 rounded-lg bg-slate-50 p-3">
-      <p className="text-xs font-medium text-slate-500">יומן פעילות</p>
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-medium text-slate-500">יומן פעילות</p>
+        <button type="button" className="text-xs text-slate-400 hover:text-slate-700" onClick={() => setOpen(false)}>
+          כווץ ‹
+        </button>
+      </div>
       {activities.length === 0 && <p className="text-sm text-slate-400">אין עדיין פעילות רשומה לליד הזה.</p>}
       <ul className="space-y-2">
         {activities.map((a) => (

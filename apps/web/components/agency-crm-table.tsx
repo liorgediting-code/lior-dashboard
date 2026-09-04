@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import type { MouseEvent } from "react";
 import type { AgencyLead, AgencyLeadStatus } from "@dashboard-lior/shared";
 import { updateAgencyLeadField, updateAgencyLeadStatus, deleteAgencyLead } from "@/lib/actions/agency-leads";
@@ -83,10 +84,14 @@ function AgencyLeadProfilePanel({
   statusLabels: StatusLabels;
   onClose: () => void;
 }) {
-  return (
+  // Portaled to <body> — a fixed-position child of <main> (which carries the
+  // permanent .animate-in transform) would be sized against main's full
+  // scroll height instead of the viewport, pushing this footer off-screen.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-slate-900/30" onClick={onClose} />
-      <div className="animate-in relative flex h-full w-full max-w-sm flex-col overflow-y-auto bg-white p-3 shadow-xl">
+      <div className="animate-in relative flex h-full w-full max-w-sm flex-col bg-white shadow-xl">
+      <div className="flex-1 overflow-y-auto p-3">
         <div className="mb-2 flex items-center justify-between">
           <h2 className="text-base font-bold">{lead.name || "ליד ללא שם"}</h2>
           <button type="button" className="btn btn-secondary text-xs" onClick={onClose}>
@@ -155,13 +160,15 @@ function AgencyLeadProfilePanel({
             נוצר ב־{new Date(lead.created_at).toLocaleString("he-IL", { dateStyle: "short", timeStyle: "short" })}
           </p>
         </div>
+      </div>
 
-        <button type="button" className="btn btn-primary mt-3 text-xs" onClick={onClose}>
+      <div className="border-t border-slate-200 p-3">
+        <button type="button" className="btn btn-primary w-full text-xs" onClick={onClose}>
           שמור שינויים
         </button>
         <button
           type="button"
-          className="btn btn-danger mt-2 text-xs"
+          className="btn btn-danger mt-2 w-full text-xs"
           onClick={() => {
             if (confirm(`אתה בטוח שאתה רוצה למחוק את הליד "${lead.name}"?`)) {
               deleteAgencyLead(lead.id);
@@ -172,7 +179,9 @@ function AgencyLeadProfilePanel({
           ✕ מחיקת ליד
         </button>
       </div>
-    </div>
+      </div>
+    </div>,
+    document.body
   );
 }
 
@@ -236,9 +245,9 @@ export function AgencyCrmTable({ leads, statusLabels }: { leads: AgencyLead[]; s
         </select>
       </div>
 
-      <div className="card overflow-x-auto p-0">
+      <div className="card sticky top-6 max-h-[calc(100vh-3rem)] overflow-auto p-0">
         <table className="w-full text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 text-right text-xs text-slate-500">
+          <thead className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 text-right text-xs text-slate-500">
             <tr>
               <th className="px-3 py-2 font-medium">שם</th>
               <th className="px-3 py-2 font-medium">עסק</th>
