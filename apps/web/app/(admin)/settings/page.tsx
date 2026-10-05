@@ -2,6 +2,7 @@ import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getAppSettings, updateMetaSettingsFromForm } from "@/lib/actions/settings";
 import { TokenField } from "@/components/token-field";
+import { CampaignsSyncButton } from "@/components/campaigns-sync-button";
 import type { Client } from "@dashboard-lior/shared";
 
 export const dynamic = "force-dynamic";
@@ -53,6 +54,12 @@ export default async function SettingsPage() {
           שמור
         </button>
       </form>
+
+      <div className="card space-y-3">
+        <h2 className="font-semibold">סנכרון קמפיינים</h2>
+        <p className="text-sm text-slate-500">מושך עכשיו נתוני קמפיינים מ-Meta עבור כל הלקוחות (30 ימים אחרונים).</p>
+        <CampaignsSyncButton />
+      </div>
 
       <div className="card space-y-3">
         <h2 className="font-semibold">חשבונות פרסום של לקוחות</h2>
