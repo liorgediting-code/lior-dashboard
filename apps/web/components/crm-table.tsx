@@ -321,8 +321,8 @@ export function CrmTable({
         </select>
       </div>
 
-      <div className="card sticky top-6 max-h-[calc(100vh-3rem)] overflow-auto p-0">
-      <table className="w-full text-sm">
+      <div className="sticky top-6 max-h-[calc(100vh-3rem)] overflow-auto border-y border-slate-200 bg-white">
+      <table className="crm-grid w-full text-sm">
         <thead className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 text-right text-xs text-slate-500">
           <tr>
             {visibleColumns.map((col) => (
@@ -347,7 +347,7 @@ export function CrmTable({
             return (
               <tr
                 key={lead.id}
-                className={`cursor-pointer border-b border-slate-100 align-top last:border-0 hover:bg-slate-50 ${isOverdue ? "bg-red-50" : ""}`}
+                className={`cursor-pointer border-b border-slate-100 align-top last:border-0 ${isOverdue ? "bg-red-50 hover:bg-red-100" : "bg-white hover:bg-slate-50"}`}
                 onClick={() => setSelectedLeadId(lead.id)}
               >
                 {visibleColumns.map((col) => {

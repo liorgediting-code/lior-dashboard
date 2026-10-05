@@ -245,8 +245,8 @@ export function AgencyCrmTable({ leads, statusLabels }: { leads: AgencyLead[]; s
         </select>
       </div>
 
-      <div className="card sticky top-6 max-h-[calc(100vh-3rem)] overflow-auto p-0">
-        <table className="w-full text-sm">
+      <div className="sticky top-6 max-h-[calc(100vh-3rem)] overflow-auto border-y border-slate-200 bg-white">
+        <table className="crm-grid w-full text-sm">
           <thead className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 text-right text-xs text-slate-500">
             <tr>
               <th className="px-3 py-2 font-medium">שם</th>
@@ -269,7 +269,7 @@ export function AgencyCrmTable({ leads, statusLabels }: { leads: AgencyLead[]; s
               return (
                 <tr
                   key={lead.id}
-                  className="cursor-pointer border-b border-slate-100 align-top last:border-0 hover:bg-slate-50"
+                  className="cursor-pointer border-b border-slate-100 bg-white align-top last:border-0 hover:bg-slate-50"
                   onClick={() => setSelectedLeadId(lead.id)}
                 >
                   <td className="px-3 py-2 font-medium" onClick={stopRowClick}>

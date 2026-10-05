@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { PortalMain } from "@/components/portal-main";
 import type { PortalThemeColor } from "@dashboard-lior/shared";
 
 export default async function ClientPortalLayout({
@@ -15,7 +16,7 @@ export default async function ClientPortalLayout({
   return (
     <div className="min-h-screen" data-portal-theme={themeColor}>
       <div className="portal-banner py-3 text-center text-sm font-medium">הפורטל האישי שלך · LiorEdits</div>
-      <main className="mx-auto max-w-5xl p-6 animate-in">{children}</main>
+      <PortalMain>{children}</PortalMain>
     </div>
   );
 }

@@ -308,3 +308,20 @@ button.card:hover {
     transition: none;
   }
 }
+
+/* Spreadsheet-style grid: the first column (lead name) stays put while the
+   rest scrolls sideways. The page is RTL, so "first" is the right edge.
+   Cells inherit the row's background so the frozen column never goes
+   transparent over the cells sliding beneath it. */
+.crm-grid tbody td:first-child,
+.crm-grid thead th:first-child {
+  position: sticky;
+  right: 0;
+  z-index: 5;
+  background-color: inherit;
+  box-shadow: 1px 0 0 0 rgb(226 232 240);
+}
+.crm-grid thead th:first-child {
+  z-index: 20;
+  background-color: rgb(248 250 252); /* the header row itself is transparent */
+}
