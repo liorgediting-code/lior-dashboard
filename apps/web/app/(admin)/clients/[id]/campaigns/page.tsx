@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { CampaignCrmToggles } from "@/components/campaign-crm-toggles";
 import { ClientTabs } from "@/components/client-tabs";
 import { CampaignStatsTable, type StatsRow } from "@/components/campaign-stats-table";
 import { fetchCampaignStats, fetchCampaignsForClient } from "@/lib/metrics/fetch-stats";
@@ -49,6 +50,32 @@ export default async function ClientCampaignsPage({ params }: { params: { id: st
           </Link>
         </div>
       </div>
+
+      {campaigns.length > 0 && (
+        <div className="card mb-6">
+          <h2 className="font-semibold">מה הלקוח רואה</h2>
+          <p className="mb-3 text-xs text-slate-500">
+            סמנו את הקמפיינים שיוצגו ללקוח ב-CRM שלו ובטאב &quot;קמפיינים&quot; בפורטל. קמפיין לא מסומן נשאר מוסתר.
+          </p>
+          <ul className="divide-y divide-slate-100">
+            {campaigns.map((campaign) => (
+              <li key={campaign.id} className="flex items-center justify-between gap-3 py-2">
+                <span className="text-sm">
+                  <span className="font-medium">{campaign.name}</span>
+                  <span className="block text-xs text-slate-400">{[campaign.funnel_stage, campaign.status].filter(Boolean).join(" · ")}</span>
+                </span>
+                <CampaignCrmToggles
+                  campaignId={campaign.id}
+                  clientName={c.name}
+                  showInAgencyCrm={campaign.show_in_agency_crm}
+                  showInClientCrm={campaign.show_in_client_crm}
+                  clientOnly
+                />
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {campaigns.length > 0 && (
         <div className="card mb-6">

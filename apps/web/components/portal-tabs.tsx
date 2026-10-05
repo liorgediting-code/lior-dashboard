@@ -8,9 +8,10 @@ export function PortalTabs({
   questionnairePending = false,
   showReports = false,
   showVideos = false,
+  showCampaigns = false,
 }: {
   clientId: string;
-  active: "crm" | "notifications" | "questionnaire" | "automations" | "reports" | "videos";
+  active: "crm" | "notifications" | "questionnaire" | "automations" | "reports" | "videos" | "campaigns";
   notificationsCount?: number;
   showAutomations: boolean;
   /** Marks the questionnaire tab until this week's answers are in. */
@@ -18,6 +19,8 @@ export function PortalTabs({
   showReports?: boolean;
   /** Hidden until the client actually has a video to review. */
   showVideos?: boolean;
+  /** Hidden until the agency pins at least one campaign for this client. */
+  showCampaigns?: boolean;
 }) {
   const tabs = [
     { key: "crm" as const, label: "CRM", href: `/client/${clientId}/crm` },
@@ -31,6 +34,7 @@ export function PortalTabs({
       label: questionnairePending ? "שאלון שבועי •" : "שאלון שבועי",
       href: `/client/${clientId}/questionnaire`,
     },
+    ...(showCampaigns ? [{ key: "campaigns" as const, label: "קמפיינים", href: `/client/${clientId}/campaigns` }] : []),
     ...(showVideos ? [{ key: "videos" as const, label: "וידאו", href: `/client/${clientId}/videos` }] : []),
     ...(showReports ? [{ key: "reports" as const, label: "דוחות", href: `/client/${clientId}/reports` }] : []),
     ...(showAutomations ? [{ key: "automations" as const, label: "אוטומציות WhatsApp", href: `/client/${clientId}/automations` }] : []),

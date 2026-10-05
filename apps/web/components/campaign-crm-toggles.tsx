@@ -53,14 +53,18 @@ export function CampaignCrmToggles({
   clientName,
   showInAgencyCrm,
   showInClientCrm,
+  clientOnly = false,
 }: {
   campaignId: string;
   clientName: string;
   showInAgencyCrm: boolean;
   showInClientCrm: boolean;
+  /** Per-client page: only the client's own CRM is relevant there. */
+  clientOnly?: boolean;
 }) {
   return (
     <div className="flex flex-col gap-1">
+      {!clientOnly && (
       <Toggle
         campaignId={campaignId}
         surface="agency"
@@ -68,6 +72,7 @@ export function CampaignCrmToggles({
         label="ה-CRM שלי"
         title="הצג את דשבורד הקמפיין ב-CRM של הסוכנות"
       />
+      )}
       <Toggle
         campaignId={campaignId}
         surface="client"

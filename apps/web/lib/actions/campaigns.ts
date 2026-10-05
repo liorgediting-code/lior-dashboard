@@ -77,6 +77,7 @@ export async function setCampaignCrmVisibility(campaignId: string, surface: CrmS
   const patch = surface === "agency" ? { show_in_agency_crm: visible } : { show_in_client_crm: visible };
   const { error } = await supabase.from("campaigns").update(patch).eq("id", campaignId);
   if (error) throw new Error(error.message);
+  revalidatePath(`/client/${campaign.client_id}`, "layout");
 
   const clientId = campaign.client_id as string;
   revalidatePath("/campaigns");

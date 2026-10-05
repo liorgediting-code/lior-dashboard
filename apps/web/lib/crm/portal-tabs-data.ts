@@ -22,6 +22,7 @@ export async function getPortalTabsData(supabase: SupabaseClient<Database>, clie
     { count: questionnaireCount },
     { count: reportsCount },
     { count: videosCount },
+    { count: campaignsCount },
   ] = await Promise.all([
       supabase.from("leads").select("id, status_id, follow_up_at").eq("client_id", clientId),
       supabase.from("lead_statuses").select("id, kind").eq("client_id", clientId),
@@ -35,6 +36,8 @@ export async function getPortalTabsData(supabase: SupabaseClient<Database>, clie
       // still writing must not appear in the portal.
       supabase.from("weekly_reports").select("id", { count: "exact", head: true }).eq("client_id", clientId).not("sent_at", "is", null),
       supabase.from("client_videos").select("id", { count: "exact", head: true }).eq("client_id", clientId),
+      // Only campaigns the agency pinned for this client — same flag the CRM dashboard reads.
+      supabase.from("campaigns").select("id", { count: "exact", head: true }).eq("client_id", clientId).eq("show_in_client_crm", true),
     ]);
 
   const openStatusIds = new Set((statuses ?? []).filter((s) => s.kind === "open").map((s) => s.id as string));
@@ -48,5 +51,6 @@ export async function getPortalTabsData(supabase: SupabaseClient<Database>, clie
     questionnairePending: (questionnaireCount ?? 0) === 0,
     showReports: (reportsCount ?? 0) > 0,
     showVideos: (videosCount ?? 0) > 0,
+    showCampaigns: (campaignsCount ?? 0) > 0,
   };
 }

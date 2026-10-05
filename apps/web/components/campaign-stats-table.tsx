@@ -46,7 +46,7 @@ export function CampaignStatsTable({
             <th className="pb-1 font-normal">{entityLabel}</th>
             <th className="pb-1 font-normal">הוצאה</th>
             <th className="pb-1 font-normal">לידים</th>
-            <th className="pb-1 font-normal">CPL</th>
+            <th className="pb-1 font-normal">עלות לתוצאה</th>
             <th className="pb-1 font-normal">קליקים</th>
             <th className="pb-1 font-normal">חשיפות</th>
             <th className="pb-1 font-normal">CTR</th>
