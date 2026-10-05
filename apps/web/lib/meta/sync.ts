@@ -118,34 +118,62 @@ export async function syncClientAdMetrics(clientId: string, lookbackDays = 3): P
     campaignStatuses = null;
   }
 
-  let synced = 0;
-  for (const insight of insights) {
-    const campaignId = await findOrCreateCampaign(clientId, insight.campaignId, insight.campaignName, campaignStatuses);
-    const adsetId = await findOrCreateAdset(campaignId, insight.adsetId, insight.adsetName);
-    const adId = await findOrCreateAd(adsetId, insight.adId, insight.adName);
+  // Insights come back one row per ad per DAY, so the same campaign/adset/ad
+  // repeats up to `lookbackDays` times. Resolving ids once per entity (not
+  // once per row) and upserting metrics in chunks turns thousands of
+  // sequential round-trips into a handful — the per-row version made the
+  // manual 30-day sync outlast the server action's time limit.
+  const campaignIds = new Map<string, string>();
+  const adsetIds = new Map<string, string>();
+  const adIds = new Map<string, string>();
+  const metricRows: Record<string, unknown>[] = [];
 
-    await supabase.from("ad_metrics_daily").upsert(
-      {
-        ad_id: adId,
-        date: insight.date,
-        spend: insight.spend,
-        leads: insight.leads,
-        impressions: insight.impressions,
-        clicks: insight.clicks,
-        reach: insight.reach,
-        link_clicks: insight.linkClicks,
-        three_sec_video_views: insight.threeSecVideoViews,
-        video_50_watched: insight.video50Watched,
-        video_75_watched: insight.video75Watched,
-        video_completed: insight.videoCompleted,
-        purchases: insight.purchases,
-        add_to_cart: insight.addToCart,
-        revenue: insight.revenue,
-      },
-      { onConflict: "ad_id,date" }
-    );
-    synced++;
+  for (const insight of insights) {
+    let campaignId = campaignIds.get(insight.campaignId);
+    if (!campaignId) {
+      campaignId = await findOrCreateCampaign(clientId, insight.campaignId, insight.campaignName, campaignStatuses);
+      campaignIds.set(insight.campaignId, campaignId);
+    }
+    const adsetKey = `${insight.campaignId}:${insight.adsetId}`;
+    let adsetId = adsetIds.get(adsetKey);
+    if (!adsetId) {
+      adsetId = await findOrCreateAdset(campaignId, insight.adsetId, insight.adsetName);
+      adsetIds.set(adsetKey, adsetId);
+    }
+    const adKey = `${adsetKey}:${insight.adId}`;
+    let adId = adIds.get(adKey);
+    if (!adId) {
+      adId = await findOrCreateAd(adsetId, insight.adId, insight.adName);
+      adIds.set(adKey, adId);
+    }
+
+    metricRows.push({
+      ad_id: adId,
+      date: insight.date,
+      spend: insight.spend,
+      leads: insight.leads,
+      impressions: insight.impressions,
+      clicks: insight.clicks,
+      reach: insight.reach,
+      link_clicks: insight.linkClicks,
+      three_sec_video_views: insight.threeSecVideoViews,
+      video_50_watched: insight.video50Watched,
+      video_75_watched: insight.video75Watched,
+      video_completed: insight.videoCompleted,
+      purchases: insight.purchases,
+      add_to_cart: insight.addToCart,
+      revenue: insight.revenue,
+    });
   }
+
+  const UPSERT_CHUNK = 500;
+  for (let i = 0; i < metricRows.length; i += UPSERT_CHUNK) {
+    const { error } = await supabase
+      .from("ad_metrics_daily")
+      .upsert(metricRows.slice(i, i + UPSERT_CHUNK) as never, { onConflict: "ad_id,date" });
+    if (error) throw new Error(error.message);
+  }
+  const synced = metricRows.length;
 
   return { clientId, synced };
 }

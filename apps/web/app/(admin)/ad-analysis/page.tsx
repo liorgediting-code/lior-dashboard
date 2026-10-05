@@ -53,6 +53,9 @@ function matchesStatus(row: CampaignDiagnosis, filter: StatusFilter): boolean {
  * and a severity-first list buries the ₪4,000 campaign with a medium problem
  * underneath it.
  */
+/** The page hosts the manual sync button; its server action runs under this limit. */
+export const maxDuration = 60;
+
 export default async function AdAnalysisPage({
   searchParams,
 }: {

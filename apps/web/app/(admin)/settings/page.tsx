@@ -7,6 +7,9 @@ import type { Client } from "@dashboard-lior/shared";
 
 export const dynamic = "force-dynamic";
 
+/** The page hosts the manual sync button; its server action runs under this limit. */
+export const maxDuration = 60;
+
 export default async function SettingsPage() {
   const [settings, { data: clients }] = await Promise.all([
     getAppSettings(),

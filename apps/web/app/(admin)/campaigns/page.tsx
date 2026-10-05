@@ -36,6 +36,9 @@ function parseSort(value: string | undefined): Sort {
   return SORTS.some((sort) => sort.key === value) ? (value as Sort) : "spend";
 }
 
+/** The page hosts the manual sync button; its server action runs under this limit. */
+export const maxDuration = 60;
+
 export default async function CampaignsPage({ searchParams }: { searchParams: { status?: string; sort?: string } }) {
   const filter = parseFilter(searchParams.status);
   const sort = parseSort(searchParams.sort);
