@@ -97,7 +97,9 @@ export class RealMetaClient implements MetaClient {
           campaignName: row.campaign_name as string,
           date: row.date_start as string,
           spend: Number(row.spend ?? 0),
-          leads: actionValue(actions, "lead", "onsite_conversion.lead_grouped"),
+          // A lead-gen campaign's result is a lead; a click-to-WhatsApp/Messenger
+          // campaign has no lead action at all — its result is a conversation started.
+          leads: actionValue(actions, "lead", "onsite_conversion.lead_grouped", "onsite_conversion.messaging_conversation_started_7d"),
           impressions: Number(row.impressions ?? 0),
           clicks: Number(row.clicks ?? 0),
           reach: Number(row.reach ?? 0),

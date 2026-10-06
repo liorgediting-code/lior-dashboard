@@ -55,7 +55,7 @@ export default async function ClientPortalCampaignsPage({ params }: { params: { 
         <>
           <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
             <Tile label="הוצאה" value={formatCurrency(total.spend)} />
-            <Tile label="לידים" value={formatNumber(total.leads)} />
+            <Tile label="תוצאות" value={formatNumber(total.leads)} />
             <Tile label="עלות לתוצאה" value={formatCurrency(total.cpl)} />
             <Tile label="חשיפות" value={formatNumber(total.impressions)} />
           </div>
