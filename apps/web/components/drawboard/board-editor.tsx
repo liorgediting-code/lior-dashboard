@@ -14,7 +14,7 @@ const FILLS = ["transparent", "#ffc9c9", "#b2f2bb", "#a5d8ff", "#ffec99", "#d0bf
 const WIDTHS = [1, 2, 4, 7, 11];
 const SAVE_DEBOUNCE_MS = 1000;
 
-interface Editing { id: string | null; x: number; y: number; value: string; fs: number; dir: TextDir }
+interface Editing { id: string | null; x: number; y: number; w: number; value: string; fs: number; dir: TextDir }
 type SaveState = "saved" | "saving" | "error";
 
 export interface BoardEditorProps {
@@ -304,7 +304,7 @@ export default function BoardEditor({ boardId, initialName, initialClientId, ini
       return;
     }
     if (tool === "text") {
-      setEditing({ id: null, x: p.x, y: p.y, value: "", fs: 20, dir: textDir });
+      setEditing({ id: null, x: p.x, y: p.y, w: 0, value: "", fs: 20, dir: textDir });
       e.preventDefault();
       return;
     }
@@ -422,7 +422,7 @@ export default function BoardEditor({ boardId, initialName, initialClientId, ini
     const p = toWorld(e);
     const hit = topHit(p.x, p.y);
     if (hit?.type === "text") {
-      setEditing({ id: hit.id, x: hit.x, y: hit.y, value: hit.text || "", fs: hit.fs ?? 20, dir: hit.dir ?? "auto" });
+      setEditing({ id: hit.id, x: hit.x, y: hit.y, w: hit.w, value: hit.text || "", fs: hit.fs ?? 20, dir: hit.dir ?? "auto" });
     }
   };
 
@@ -590,7 +590,7 @@ export default function BoardEditor({ boardId, initialName, initialClientId, ini
         if (!selected.has(el.id)) return el;
         const n = { ...el, x: cx + (el.x - cx) * factor, y: cy + (el.y - cy) * factor };
         if (el.type !== "text" && el.type !== "image") n.sw = Math.max(1, el.sw * factor); // arrowheads grow with width
-        if (el.type === "text") n.fs = Math.max(6, (el.fs ?? 20) * factor);
+        if (el.type === "text") { n.fs = Math.max(6, (el.fs ?? 20) * factor); if (el.w > 0) n.w = el.w * factor; }
         else if (el.type === "freedraw") n.points = el.points!.map(([px, py]) => [px * factor, py * factor]);
         else { n.w = el.w * factor; n.h = el.h * factor; }
         return n;
@@ -796,6 +796,7 @@ export default function BoardEditor({ boardId, initialName, initialClientId, ini
               left: (editing.x - view.x) * view.zoom,
               top: (editing.y - view.y) * view.zoom,
               fontSize: editing.fs * view.zoom,
+              ...(editing.w > 0 ? { width: editing.w * view.zoom } : {}),
               lineHeight: `${editing.fs * 1.3 * view.zoom}px`,
               color: stroke,
               textAlign: isRTL({ dir: editing.dir, text: editing.value }) ? "right" : "left",

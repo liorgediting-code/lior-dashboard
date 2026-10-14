@@ -84,8 +84,14 @@ export function resizeElement(orig: El, b0: Box, handle: string, px: number, py:
     };
   }
   if (orig.type === "text") {
-    const f = handle === "n" || handle === "s" ? nb.h / b0.h : nb.w / b0.w;
-    return { ...orig, x: nb.x, y: nb.y, fs: Math.max(6, (orig.fs ?? 20) * f) };
+    // Shift = scale the font with the box (the old behaviour).
+    if (lock) {
+      const f = handle === "n" || handle === "s" ? nb.h / b0.h : nb.w / b0.w;
+      return { ...orig, x: nb.x, y: nb.y, fs: Math.max(6, (orig.fs ?? 20) * f) };
+    }
+    // Otherwise the handles set the box WIDTH and the words re-wrap; height follows.
+    if (handle === "n" || handle === "s") return orig;
+    return { ...orig, x: nb.x, y: b0.y, w: Math.max(30, nb.w) };
   }
   if (orig.crop) {
     // Scale the full frame so the visible part lands on the new box.
@@ -121,12 +127,19 @@ export function cropElement(orig: El, b0: Box, handle: string, px: number, py: n
   return { ...orig, x: full.x, y: full.y, w: full.w, h: full.h, crop: none ? undefined : crop };
 }
 
+// Text with w > 0 is a fixed-width box: words wrap to that width and the height
+// follows. Text with w === 0 is auto-width (it only breaks on explicit newlines).
+function textLayout(el: El): { lines: string[]; w: number } {
+  const ctx = measureCtx();
+  ctx.font = fontOf(el);
+  if (el.w > 0) return { lines: wrapLines(ctx, el.text || "", el.w), w: el.w };
+  const lines = (el.text || "").split("\n");
+  return { lines, w: Math.max(10, ...lines.map((l) => ctx.measureText(l).width)) };
+}
+
 export function bounds(el: El) {
   if (el.type === "text") {
-    const lines = (el.text || "").split("\n");
-    const ctx = measureCtx();
-    ctx.font = fontOf(el);
-    const w = Math.max(10, ...lines.map((l) => ctx.measureText(l).width));
+    const { lines, w } = textLayout(el);
     return { x: el.x, y: el.y, w, h: lines.length * lineH(el) };
   }
   if (el.type === "freedraw" && el.points) {
@@ -218,6 +231,13 @@ function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxW: number): s
     for (const word of para.split(/\s+/).filter(Boolean)) {
       const next = line ? line + " " + word : word;
       if (line && ctx.measureText(next).width > maxW) { out.push(line); line = word; } else line = next;
+      // A single word wider than the box is broken by characters.
+      while (line.length > 1 && ctx.measureText(line).width > maxW) {
+        let n = line.length - 1;
+        while (n > 1 && ctx.measureText(line.slice(0, n)).width > maxW) n--;
+        out.push(line.slice(0, n));
+        line = line.slice(n);
+      }
     }
     out.push(line);
   }
@@ -352,21 +372,22 @@ export function drawElement(canvas: HTMLCanvasElement, ctx: CanvasRenderingConte
       }
       break;
     }
-    case "text":
+    case "text": {
       ctx.font = fontOf(el);
       ctx.fillStyle = el.stroke;
       ctx.textBaseline = "top";
+      const { lines, w } = textLayout(el);
       if (isRTL(el)) {
         ctx.direction = "rtl";
         ctx.textAlign = "right";
-        const right = el.x + bounds(el).w;
-        (el.text || "").split("\n").forEach((line, i) => ctx.fillText(line, right, el.y + i * lineH(el) + 2));
+        lines.forEach((line, i) => ctx.fillText(line, el.x + w, el.y + i * lineH(el) + 2));
         ctx.direction = "ltr";
         ctx.textAlign = "left";
       } else {
-        (el.text || "").split("\n").forEach((line, i) => ctx.fillText(line, el.x, el.y + i * lineH(el) + 2));
+        lines.forEach((line, i) => ctx.fillText(line, el.x, el.y + i * lineH(el) + 2));
       }
       break;
+    }
   }
   if (c) ctx.restore();
 }
