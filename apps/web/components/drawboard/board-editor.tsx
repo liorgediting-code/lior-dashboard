@@ -502,15 +502,75 @@ export default function BoardEditor({ boardId, initialName, initialClientId, ini
     if (id === "image") { setTool("select"); pickImage(); } else setTool(id);
   };
 
-  useEffect(() => {
-    const onPaste = (e: ClipboardEvent) => {
-      const t = e.target as HTMLElement;
-      if (t.tagName === "TEXTAREA" || t.tagName === "INPUT") return;
+  // ---- copy / cut / paste of board elements ----
+  // Elements travel through the system clipboard as tagged JSON, so they paste
+  // across boards and tabs, and plain text / images pasted from elsewhere still work.
+  const CLIP_TAG = "drawboard/elements:";
+  const pasteCount = useRef(0);
+  const clipHandlers = useRef<{ copy: (e: ClipboardEvent, cut: boolean) => void; paste: (e: ClipboardEvent) => void }>();
+  clipHandlers.current = {
+    copy: (e, cut) => {
+      const sel = elsRef.current.filter((el) => selected.has(el.id));
+      if (!sel.length || !e.clipboardData) return;
+      e.preventDefault();
+      e.clipboardData.setData("text/plain", CLIP_TAG + JSON.stringify(sel));
+      pasteCount.current = 0;
+      if (cut) {
+        commit(elsRef.current.filter((el) => !selected.has(el.id)), elsRef.current);
+        setSelected(new Set());
+      }
+    },
+    paste: (e) => {
+      if (present) return;
       const files = Array.from(e.clipboardData?.files ?? []).filter((f) => f.type.startsWith("image/"));
-      if (files.length) { e.preventDefault(); files.forEach(addImage); }
+      if (files.length) { e.preventDefault(); files.forEach(addImage); return; }
+      const text = e.clipboardData?.getData("text/plain") ?? "";
+      if (!text.trim()) return;
+      e.preventDefault();
+      const cv = canvasRef.current!, v = viewRef.current;
+      const vw = cv.clientWidth / v.zoom, vh = cv.clientHeight / v.zoom;
+      let made: El[];
+      if (text.startsWith(CLIP_TAG)) {
+        let src: El[];
+        try { src = JSON.parse(text.slice(CLIP_TAG.length)); } catch { return; }
+        if (!Array.isArray(src) || !src.length) return;
+        // Each paste lands 20px further down-right, so repeated pastes cascade.
+        pasteCount.current += 1;
+        const off = 20 * pasteCount.current;
+        const bs = src.map(bounds);
+        const gx = Math.min(...bs.map((b) => b.x)) + off, gy = Math.min(...bs.map((b) => b.y)) + off;
+        const gw = Math.max(...bs.map((b) => b.x + b.w)) - Math.min(...bs.map((b) => b.x));
+        const gh = Math.max(...bs.map((b) => b.y + b.h)) - Math.min(...bs.map((b) => b.y));
+        const visible = gx < v.x + vw && gx + gw > v.x && gy < v.y + vh && gy + gh > v.y;
+        // If the copied group is off-screen (other board, panned away), drop it in view.
+        const dx = visible ? off : v.x + vw / 2 - gw / 2 - (gx - off);
+        const dy = visible ? off : v.y + vh / 2 - gh / 2 - (gy - off);
+        made = src.map((el) => ({ ...el, id: uid(), x: el.x + dx, y: el.y + dy, seed: Math.floor(Math.random() * 1e6) }));
+      } else {
+        const clean = text.replace(/\r\n?/g, "\n").slice(0, 5000);
+        made = [{ id: uid(), type: "text", x: v.x + vw / 2 - 100, y: v.y + vh / 2 - 20, w: 0, h: 0, text: clean, stroke, fill: "transparent", sw, seed: 1, fs: 20, dir: textDir }];
+      }
+      commit([...elsRef.current, ...made], elsRef.current);
+      setSelected(new Set(made.map((m) => m.id)));
+    },
+  };
+
+  useEffect(() => {
+    const editable = (t: EventTarget | null) => {
+      const el = t as HTMLElement | null;
+      return !!el && (el.tagName === "TEXTAREA" || el.tagName === "INPUT" || el.tagName === "SELECT" || el.isContentEditable);
     };
+    const onPaste = (e: ClipboardEvent) => { if (!editable(e.target)) clipHandlers.current!.paste(e); };
+    const onCopy = (e: ClipboardEvent) => { if (!editable(e.target)) clipHandlers.current!.copy(e, false); };
+    const onCut = (e: ClipboardEvent) => { if (!editable(e.target)) clipHandlers.current!.copy(e, true); };
     window.addEventListener("paste", onPaste);
-    return () => window.removeEventListener("paste", onPaste);
+    window.addEventListener("copy", onCopy);
+    window.addEventListener("cut", onCut);
+    return () => {
+      window.removeEventListener("paste", onPaste);
+      window.removeEventListener("copy", onCopy);
+      window.removeEventListener("cut", onCut);
+    };
   }, []);
 
   // Apply style changes to selected elements.
