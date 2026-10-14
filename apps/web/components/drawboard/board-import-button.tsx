@@ -3,6 +3,8 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createBoard } from "@/lib/actions/boards";
+import { shrinkImages } from "./image-utils";
+import type { El } from "./types";
 
 /** Creates a board from a `.drawboard.json` export (the old standalone app's format). */
 export function BoardImportButton({ clientId }: { clientId?: string | null }) {
@@ -20,10 +22,15 @@ export function BoardImportButton({ clientId }: { clientId?: string | null }) {
       const name = String(data.name || file.name.replace(/\.drawboard\.json$|\.json$/, "") || "Imported");
       start(async () => {
         try {
-          const id = await createBoard(name, clientId ?? null, data.elements);
+          const elements = await shrinkImages(data.elements as El[]);
+          if (JSON.stringify(elements).length > 4_000_000) {
+            setError("הלוח גדול מדי גם אחרי דחיסת התמונות (מעל 4MB)");
+            return;
+          }
+          const id = await createBoard(name, clientId ?? null, elements);
           router.push(`/boards/${id}`);
         } catch {
-          setError("הייבוא נכשל (הקובץ גדול מדי?)");
+          setError("הייבוא נכשל — נסה שוב");
         }
       });
     } catch {

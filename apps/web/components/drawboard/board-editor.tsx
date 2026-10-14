@@ -6,6 +6,7 @@ import { saveBoardElements, renameBoard, setBoardClient } from "@/lib/actions/bo
 import KeybindsDialog from "./keybinds-dialog";
 import { loadKeybinds, normKey, saveKeybinds, type Keybinds } from "./keybinds";
 import { bounds, exportPNG, cropElement, getHandles, hitTest, isRTL, renderScene, resizeElement, setImageLoadCallback } from "./render";
+import { shrinkDataUrl, shrinkImages } from "./image-utils";
 import { TOOLS, uid, type El, type TextDir, type ToolId, type View } from "./types";
 
 const STROKES = ["#1e1e1e", "#e03131", "#2f9e44", "#1971c2", "#f08c00", "#ffffff"];
@@ -159,7 +160,7 @@ export default function BoardEditor({ boardId, initialName, initialClientId, ini
         const data = JSON.parse(await file.text());
         if (!Array.isArray(data.elements)) throw new Error("bad file");
         if (!confirm("Replace this board's content with the imported file? (Undo works.)")) return;
-        commit(data.elements as El[], elsRef.current);
+        commit(await shrinkImages(data.elements as El[]), elsRef.current);
         setSelected(new Set());
       } catch {
         alert("Couldn't read that file.");
@@ -441,14 +442,14 @@ export default function BoardEditor({ boardId, initialName, initialClientId, ini
     const reader = new FileReader();
     reader.onload = () => {
       const img = new Image();
-      img.onload = () => {
+      img.onload = async () => {
         const nw = img.naturalWidth || 300, nh = img.naturalHeight || 300;
         const k = Math.min(1, 1000 / Math.max(nw, nh));
         const c = document.createElement("canvas");
         c.width = Math.round(nw * k);
         c.height = Math.round(nh * k);
         c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
-        const src = c.toDataURL(file.type === "image/png" ? "image/png" : "image/jpeg", 0.85);
+        const src = await shrinkDataUrl(c.toDataURL(file.type === "image/png" ? "image/png" : "image/jpeg", 0.85));
         const w = Math.min(400, c.width), h = (w * c.height) / c.width;
         const v = viewRef.current, cv = canvasRef.current!;
         const el: El = {
