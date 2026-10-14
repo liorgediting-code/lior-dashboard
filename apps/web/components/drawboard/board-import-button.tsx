@@ -30,7 +30,7 @@ export function BoardImportButton({ clientId }: { clientId?: string | null }) {
           const id = await createBoard(name, clientId ?? null, elements);
           router.push(`/boards/${id}`);
         } catch {
-          setError("הייבוא נכשל — נסה שוב");
+          setError("הייבוא נכשל. אם נכנסת לפורטל של לקוח בדפדפן הזה, התנתק ממנו (או פתח חלון גלישה בסתר) ונסה שוב");
         }
       });
     } catch {
