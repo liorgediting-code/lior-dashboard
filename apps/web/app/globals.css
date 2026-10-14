@@ -325,3 +325,79 @@ button.card:hover {
   z-index: 20;
   background-color: rgb(248 250 252); /* the header row itself is transparent */
 }
+
+/* ---------- Drawboard (scoped: every rule lives under .drawboard) ---------- */
+.drawboard { direction:ltr; }
+.drawboard { --bg:#fff; --panel:#f8f9fa; --text:#1b1b1f; --muted:#777; --border:#dddde3; --accent:#6965db; --hover:#e9e9f5; }
+.drawboard.dark { --bg:#121212; --panel:#1e1e24; --text:#e8e8ec; --muted:#999; --border:#33333c; --accent:#a8a5ff; --hover:#2b2b36; }
+.drawboard, .drawboard * { box-sizing: border-box; }
+.drawboard { display:flex; height:100%; background:var(--bg); color:var(--text); }
+.drawboard button { font:inherit; color:inherit; background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:6px 10px; cursor:pointer; }
+.drawboard button:hover { background:var(--hover); }
+.drawboard .sidebar { width:230px; background:var(--panel); border-right:1px solid var(--border); display:flex; flex-direction:column; }
+.drawboard .side-head { display:flex; justify-content:space-between; align-items:center; padding:12px; }
+.drawboard .sidebar ul { list-style:none; margin:0; padding:0 8px; flex:1; overflow:auto; }
+.drawboard .sidebar li { display:flex; justify-content:space-between; align-items:center; padding:8px 10px; border-radius:8px; cursor:pointer; }
+.drawboard .sidebar li:hover { background:var(--hover); }
+.drawboard .sidebar li.active { background:var(--accent); color:#fff; }
+.drawboard .fname { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.drawboard .fact { display:none; gap:2px; }
+.drawboard .sidebar li:hover .fact { display:flex; }
+.drawboard .fact button { padding:0 5px; background:transparent; border:none; }
+.drawboard .side-foot { display:flex; flex-direction:column; gap:6px; padding:12px; border-top:1px solid var(--border); }
+.drawboard .stage { position:relative; flex:1; overflow:hidden; }
+.drawboard canvas { width:100%; height:100%; display:block; touch-action:none; }
+.drawboard .toolbar { position:absolute; top:12px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:4px; padding:6px; background:var(--panel); border:1px solid var(--border); border-radius:12px; box-shadow:0 2px 10px #0002; z-index:2; }
+.drawboard .tool, .drawboard .plain { position:relative; width:38px; height:38px; padding:0; background:transparent; border:none; font-size:18px; }
+.drawboard .tool.on { background:var(--accent); color:#fff; }
+.drawboard .tool sub { position:absolute; right:4px; bottom:2px; font-size:9px; opacity:.7; }
+.drawboard .sep { width:1px; height:24px; background:var(--border); margin:0 4px; }
+.drawboard .props { position:absolute; top:76px; left:12px; width:176px; padding:12px; background:var(--panel); border:1px solid var(--border); border-radius:12px; box-shadow:0 2px 10px #0002; z-index:2; display:flex; flex-direction:column; gap:6px; }
+.drawboard .props .title { font-weight:600; margin-bottom:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.drawboard .props label { font-size:12px; color:var(--muted); }
+.drawboard .swatches { display:flex; gap:6px; flex-wrap:wrap; }
+.drawboard .sw { width:22px; height:22px; padding:0; border-radius:6px; }
+.drawboard .sw.none { background:repeating-linear-gradient(45deg,#ccc 0 4px,#fff 4px 8px); }
+.drawboard .sw.on, .drawboard .wd.on { outline:2px solid var(--accent); outline-offset:1px; }
+.drawboard .wd { width:36px; height:22px; padding:0 6px; display:flex; align-items:center; }
+.drawboard .wd i { display:block; width:100%; background:var(--text); border-radius:2px; }
+.drawboard .hint { position:absolute; bottom:10px; left:50%; transform:translateX(-50%); font-size:12px; color:var(--muted); pointer-events:none; }
+.drawboard .text-edit { position:absolute; min-width:120px; min-height:30px; padding:0; border:1px dashed var(--accent); outline:none; background:transparent; resize:none; font-family:'Segoe Print','Comic Sans MS',cursive; z-index:3; }
+.drawboard .modal-back { position:fixed; inset:0; background:#0008; display:grid; place-items:center; z-index:10; }
+.drawboard .modal { width:min(420px, 92vw); max-height:90vh; overflow:auto; background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:14px; padding:20px; }
+.drawboard .modal h2 { margin:0 0 4px; }
+.drawboard .modal table { width:100%; border-collapse:collapse; margin:10px 0; }
+.drawboard .modal td { padding:5px 0; }
+.drawboard .modal td:last-child { text-align:right; }
+.drawboard .muted { color:var(--muted); font-size:13px; margin:0; }
+.drawboard .error { color:#e03131; font-size:13px; }
+.drawboard .key { min-width:90px; font-family:monospace; margin-right:6px; }
+.drawboard .key.capturing { border-color:var(--accent); background:var(--hover); }
+.drawboard .link { border:none; background:none; color:var(--muted); font-size:12px; padding:0; }
+.drawboard .row { display:flex; justify-content:space-between; margin-top:12px; }
+.drawboard .primary { background:var(--accent); color:#fff; border:none; }
+.drawboard .icon { display:inline-block; width:20px; text-align:center; }
+.drawboard .bottombar { position:absolute; bottom:36px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:6px; padding:6px; background:var(--panel); border:1px solid var(--border); border-radius:12px; box-shadow:0 2px 10px #0002; z-index:2; }
+.drawboard .bottombar .zl { min-width:60px; }
+.drawboard .sidebtns { position:absolute; right:12px; top:50%; transform:translateY(-50%); display:flex; flex-direction:column; gap:6px; padding:6px; background:var(--panel); border:1px solid var(--border); border-radius:12px; box-shadow:0 2px 10px #0002; z-index:2; }
+.drawboard .sidebtns button { width:38px; height:38px; padding:0; font-size:18px; }
+.drawboard button:disabled { opacity:.4; cursor:not-allowed; }
+.drawboard .seg { display:flex; }
+.drawboard .seg button { flex:1; padding:4px 0; border-radius:0; font-size:12px; }
+.drawboard .seg button:first-child { border-radius:8px 0 0 8px; }
+.drawboard .seg button:last-child { border-radius:0 8px 8px 0; }
+.drawboard .seg button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+.drawboard .banner { position:absolute; top:0; left:0; right:0; z-index:5; padding:8px 12px; background:#e03131; color:#fff; text-align:center; font-size:13px; }
+.drawboard.present .sidebar, .drawboard.present .toolbar, .drawboard.present .props, .drawboard.present .bottombar, .drawboard.present .sidebtns, .drawboard.present .hint, .drawboard.present .banner { display:none; }
+.drawboard .exit-present { position:absolute; top:12px; right:12px; z-index:6; opacity:.25; transition:opacity .2s; }
+.drawboard .exit-present:hover { opacity:1; }
+.drawboard .side-head .back-link { color:var(--text); text-decoration:none; font-size:14px; }
+.drawboard .side-head .back-link:hover { color:var(--accent); }
+.drawboard .save-state { font-size:12px; color:var(--muted); }
+.drawboard .save-state.error { color:#e03131; font-weight:600; }
+.drawboard .side-body { display:flex; flex-direction:column; gap:6px; padding:0 12px 12px; flex:1; overflow:auto; }
+.drawboard .side-body label { font-size:12px; color:var(--muted); }
+.drawboard .side-body input, .drawboard .side-body select { width:100%; padding:6px 8px; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text); font:inherit; }
+.drawboard.present { position:fixed; inset:0; z-index:100; height:auto; }
+/* A transformed ancestor (the fade-in animation) would trap position:fixed. */
+.animate-in:has(.drawboard.present) { animation:none; }

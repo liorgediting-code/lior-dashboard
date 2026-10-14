@@ -19,6 +19,7 @@ const links = [
   { href: "/questionnaires", label: "שאלונים", icon: (p: SVGProps<SVGSVGElement>) => <Icon {...p}><path d="M9 12l2 2 4-4" /><path d="M5 3h14v18H5z" /></Icon> },
   { href: "/forms", label: "טפסים", icon: (p: SVGProps<SVGSVGElement>) => <Icon {...p}><path d="M15 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5M8 13h8M8 17h5" /></Icon> },
   { href: "/instagram", label: "אינסטגרם", icon: (p: SVGProps<SVGSVGElement>) => <Icon {...p}><rect x="2" y="2" width="20" height="20" rx="5" /><circle cx="12" cy="12" r="4" /><path d="M17.5 6.5h.01" /></Icon> },
+  { href: "/boards", label: "לוחות", icon: (p: SVGProps<SVGSVGElement>) => <Icon {...p}><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M7 15l3-4 3 3 4-6" /></Icon> },
   { href: "/missions", label: "משימות", icon: (p: SVGProps<SVGSVGElement>) => <Icon {...p}><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></Icon> },
   { href: "/goals", label: "מטרות", icon: (p: SVGProps<SVGSVGElement>) => <Icon {...p}><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" /></Icon> },
   { href: "/kill-queue", label: "תור הריגה", icon: (p: SVGProps<SVGSVGElement>) => <Icon {...p}><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" /></Icon> },

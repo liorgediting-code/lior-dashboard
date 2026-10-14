@@ -469,6 +469,18 @@ export type Note = {
   updated_at: string;
 };
 
+// --- Phase 26: Drawboard whiteboards ---
+
+export type Board = {
+  id: string;
+  name: string;
+  client_id: string | null;
+  /** Drawing elements — the shape is owned by components/drawboard/types.ts. */
+  elements: unknown[];
+  created_at: string;
+  updated_at: string;
+};
+
 // --- Phase 18 (roadmap 2c): weekly campaign questionnaire ---
 
 export type QuestionnaireQuestionType = "text" | "textarea" | "number" | "rating";

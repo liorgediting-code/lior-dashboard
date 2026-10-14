@@ -41,6 +41,7 @@ import type {
   Funnel,
   FunnelCampaign,
   Note,
+  Board,
   QuestionnaireTemplate,
   QuestionnaireResponse,
   WebhookFieldMapping,
@@ -173,6 +174,18 @@ export type Database = {
             columns: ["funnel_id"];
             isOneToOne: false;
             referencedRelation: "funnels";
+            referencedColumns: ["id"];
+          },
+        ]
+      >;
+      boards: Table<
+        Board,
+        [
+          {
+            foreignKeyName: "boards_client_id_fkey";
+            columns: ["client_id"];
+            isOneToOne: false;
+            referencedRelation: "clients";
             referencedColumns: ["id"];
           },
         ]
