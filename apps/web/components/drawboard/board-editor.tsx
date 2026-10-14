@@ -47,6 +47,8 @@ export default function BoardEditor({ boardId, initialName, initialClientId, ini
   const [, force] = useState(0);
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const [present, setPresent] = useState(false);
+  const [openDoc, setOpenDoc] = useState<string | null>(null);
+  const docBefore = useRef<El[] | null>(null);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -61,6 +63,7 @@ export default function BoardEditor({ boardId, initialName, initialClientId, ini
     sx: number; sy: number; before: El[]; id?: string;
     orig?: Map<string, { x: number; y: number }>; vx?: number; vy?: number;
     handle?: string; origEl?: El; b0?: { x: number; y: number; w: number; h: number };
+    cx?: number; cy?: number; docId?: string;
   }>(null);
   const spaceDown = useRef(false);
 
@@ -280,7 +283,19 @@ export default function BoardEditor({ boardId, initialName, initialClientId, ini
     const before = elsRef.current;
 
     if (present) {
-      drag.current = { kind: "pan", sx: e.clientX, sy: e.clientY, before, vx: view.x, vy: view.y };
+      const hit = topHit(p.x, p.y);
+      drag.current = { kind: "pan", sx: e.clientX, sy: e.clientY, before, vx: view.x, vy: view.y, docId: hit?.type === "doc" ? hit.id : undefined };
+      return;
+    }
+    if (tool === "doc") {
+      const w = 240, h = 160;
+      const el: El = { id: uid(), type: "doc", x: p.x - w / 2, y: p.y - h / 2, w, h, title: "Untitled doc", body: "", stroke, fill: "#fffdf7", sw: 1, seed: 1 };
+      commit([...before, el], before);
+      setSelected(new Set([el.id]));
+      setTool("select");
+      docBefore.current = elsRef.current;
+      setOpenDoc(el.id);
+      e.preventDefault();
       return;
     }
 
@@ -315,7 +330,7 @@ export default function BoardEditor({ boardId, initialName, initialClientId, ini
         setSelected(sel);
         const orig = new Map<string, { x: number; y: number }>();
         before.forEach((el) => sel.has(el.id) && orig.set(el.id, { x: el.x, y: el.y }));
-        drag.current = { kind: "move", sx: p.x, sy: p.y, before, orig };
+        drag.current = { kind: "move", sx: p.x, sy: p.y, before, orig, docId: hit.type === "doc" ? hit.id : undefined, cx: e.clientX, cy: e.clientY };
       } else {
         setSelected(new Set());
         drag.current = { kind: "box", sx: p.x, sy: p.y, before };
@@ -376,10 +391,18 @@ export default function BoardEditor({ boardId, initialName, initialClientId, ini
     }
   };
 
-  const onPointerUp = () => {
+  const onPointerUp = (e: React.PointerEvent) => {
     const d = drag.current;
     drag.current = null;
     if (!d) return;
+    // A click (no real drag) on a doc card opens it.
+    if (d.docId && (d.kind === "move" || d.kind === "pan")) {
+      const moved = d.kind === "move" ? Math.hypot(e.clientX - d.cx!, e.clientY - d.cy!) : Math.hypot(e.clientX - d.sx, e.clientY - d.sy);
+      if (moved < 4) {
+        if (d.kind === "move") setElements(d.before);
+        return openDocById(d.docId);
+      }
+    }
     const cur = elsRef.current;
     if (d.kind === "draw") {
       const el = cur.find((x) => x.id === d.id);
@@ -550,6 +573,21 @@ export default function BoardEditor({ boardId, initialName, initialClientId, ini
     }
   };
 
+  // ---- docs ----
+  const openDocById = (id: string) => {
+    docBefore.current = elsRef.current;
+    setEditing(null);
+    setOpenDoc(id);
+  };
+  const closeDoc = () => {
+    const before = docBefore.current;
+    if (before && before !== elsRef.current) { undo.current.push(before); redo.current = []; }
+    docBefore.current = null;
+    setOpenDoc(null);
+  };
+  const patchDoc = (id: string, patch: Partial<El>) =>
+    setElements(elsRef.current.map((el) => (el.id === id ? { ...el, ...patch } : el)));
+
   const enterPresent = () => {
     finishText();
     setSelected(new Set());
@@ -711,6 +749,37 @@ export default function BoardEditor({ boardId, initialName, initialClientId, ini
           />
         )}
 
+        {openDoc && (() => {
+          const doc = elements.find((x) => x.id === openDoc);
+          if (!doc) return null;
+          return (
+            <div className="doc-backdrop" onPointerDown={(e) => { if (e.target === e.currentTarget) closeDoc(); }}>
+              <div className="doc-panel">
+                <div className="doc-head">
+                  <input
+                    className="doc-title"
+                    dir="auto"
+                    value={doc.title ?? ""}
+                    placeholder="Untitled doc"
+                    onChange={(e) => patchDoc(doc.id, { title: e.target.value })}
+                    onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Escape") closeDoc(); }}
+                  />
+                  <button onClick={closeDoc} title="Close (Esc)">✕</button>
+                </div>
+                <textarea
+                  className="doc-body"
+                  dir="auto"
+                  autoFocus
+                  value={doc.body ?? ""}
+                  placeholder="Start writing…"
+                  onChange={(e) => patchDoc(doc.id, { body: e.target.value })}
+                  onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Escape") closeDoc(); }}
+                />
+              </div>
+            </div>
+          );
+        })()}
+
         <div className="bottombar">
           <button onClick={() => zoomBy(1 / 1.2)} title="Zoom out">−</button>
           <button className="zl" onClick={() => setView((v) => ({ ...v, zoom: 1 }))} title="Reset zoom">
@@ -749,7 +818,7 @@ export default function BoardEditor({ boardId, initialName, initialClientId, ini
         )}
 
         <div className="hint">
-          Scroll to pan · Ctrl/⌘ + scroll to zoom · Hold Space to drag · Double-click text to edit · Hold ⌘/Ctrl while dragging a handle to crop
+          Scroll to pan · Ctrl/⌘ + scroll to zoom · Hold Space to drag · Double-click text to edit · Click a doc to open it · Hold ⌘/Ctrl while dragging a handle to crop
         </div>
       </main>
 

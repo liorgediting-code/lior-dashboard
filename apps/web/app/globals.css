@@ -401,3 +401,9 @@ button.card:hover {
 .drawboard.present { position:fixed; inset:0; z-index:100; height:auto; }
 /* A transformed ancestor (the fade-in animation) would trap position:fixed. */
 .animate-in:has(.drawboard.present) { animation:none; }
+.drawboard .doc-backdrop { position:absolute; inset:0; z-index:8; background:#0006; display:grid; place-items:center; padding:24px; }
+.drawboard .doc-panel { width:min(820px,100%); height:min(86%,760px); display:flex; flex-direction:column; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:14px; box-shadow:0 12px 40px #0004; overflow:hidden; animation:doc-pop .16s ease-out; }
+.drawboard .doc-head { display:flex; align-items:center; gap:8px; padding:12px 14px; border-bottom:1px solid var(--border); }
+.drawboard .doc-title { flex:1; border:none; outline:none; background:transparent; color:inherit; font:inherit; font-size:22px; font-weight:700; }
+.drawboard .doc-body { flex:1; border:none; outline:none; resize:none; background:transparent; color:inherit; font:inherit; font-size:17px; line-height:1.7; padding:18px 22px; }
+@keyframes doc-pop { from { opacity:0; transform:scale(.94); } to { opacity:1; transform:scale(1); } }

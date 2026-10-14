@@ -200,6 +200,76 @@ function drawArrowHead(ctx: CanvasRenderingContext2D, el: El) {
   ctx.stroke();
 }
 
+
+function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxW: number): string[] {
+  const out: string[] = [];
+  for (const para of text.split("\n")) {
+    let line = "";
+    for (const word of para.split(/\s+/).filter(Boolean)) {
+      const next = line ? line + " " + word : word;
+      if (line && ctx.measureText(next).width > maxW) { out.push(line); line = word; } else line = next;
+    }
+    out.push(line);
+  }
+  return out;
+}
+
+function drawDoc(ctx: CanvasRenderingContext2D, el: El) {
+  const x = Math.min(el.x, el.x + el.w), y = Math.min(el.y, el.y + el.h);
+  const w = Math.abs(el.w), h = Math.abs(el.h), pad = 14;
+  const title = el.title || "Untitled doc", body = el.body || "";
+  const rtl = isRTL({ dir: "auto", text: title + body });
+  ctx.save();
+  roundRectPath(ctx, x, y, w, h, 10);
+  ctx.shadowColor = "rgba(0,0,0,.2)";
+  ctx.shadowBlur = 10;
+  ctx.shadowOffsetY = 3;
+  ctx.fillStyle = "#fffdf7";
+  ctx.fill();
+  ctx.shadowColor = "transparent";
+  ctx.strokeStyle = "#d8d2c0";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.clip();
+  ctx.fillStyle = "#6965db";
+  ctx.fillRect(x, y, w, 6);
+  ctx.textBaseline = "top";
+  ctx.direction = rtl ? "rtl" : "ltr";
+  ctx.textAlign = rtl ? "right" : "left";
+  const tx = rtl ? x + w - pad : x + pad, maxW = w - pad * 2;
+  ctx.font = "bold 17px system-ui, sans-serif";
+  ctx.fillStyle = "#1b1b1f";
+  let t = title;
+  while (t.length > 1 && ctx.measureText(t).width > maxW) t = t.slice(0, -1);
+  ctx.fillText(t === title ? t : t.trimEnd() + "…", tx, y + 20);
+  ctx.fillStyle = "#e4dfcf";
+  ctx.fillRect(x + pad, y + 46, w - pad * 2, 1);
+  ctx.font = "13px system-ui, sans-serif";
+  if (!body.trim()) {
+    ctx.fillStyle = "#aaa";
+    ctx.fillText("Click to write…", tx, y + 58);
+  } else {
+    ctx.fillStyle = "#555";
+    const lines = wrapLines(ctx, body, maxW);
+    const max = Math.max(1, Math.floor((h - 62) / 18));
+    lines.slice(0, max).forEach((ln, i) => {
+      const last = i === max - 1 && lines.length > max;
+      ctx.fillText(last ? ln + " …" : ln, tx, y + 58 + i * 18);
+    });
+  }
+  ctx.restore();
+}
+
 export function drawElement(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, el: El) {
   const rc = rough.canvas(canvas);
   const opts = {
@@ -269,6 +339,9 @@ export function drawElement(canvas: HTMLCanvasElement, ctx: CanvasRenderingConte
         ctx.lineCap = ctx.lineJoin = "round";
         ctx.stroke();
       }
+      break;
+    case "doc":
+      drawDoc(ctx, el);
       break;
     case "image": {
       const img = getImage(el.src!);

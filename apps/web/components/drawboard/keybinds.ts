@@ -14,6 +14,7 @@ export const DEFAULT_KEYBINDS: Keybinds = {
   freedraw: "p",
   text: "t",
   image: "i",
+  doc: "n",
   eraser: "e",
 };
 

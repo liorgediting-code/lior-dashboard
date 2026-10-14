@@ -10,6 +10,7 @@ export type ToolId =
   | "freedraw"
   | "text"
   | "image"
+  | "doc"
   | "eraser";
 
 export type TextDir = "auto" | "ltr" | "rtl";
@@ -27,6 +28,8 @@ export interface El {
   src?: string; // image data URL
   fs?: number; // font size for text
   dir?: TextDir; // text direction
+  title?: string; // doc card title
+  body?: string; // doc card contents
   stroke: string;
   fill: string; // "transparent" for none
   sw: number;
@@ -51,6 +54,7 @@ export const TOOLS: { id: ToolId; label: string; icon: string }[] = [
   { id: "freedraw", label: "Draw", icon: "✎" },
   { id: "text", label: "Text", icon: "A" },
   { id: "image", label: "Image", icon: "🖼" },
+  { id: "doc", label: "Doc", icon: "📄" },
   { id: "eraser", label: "Eraser", icon: "⌫" },
 ];
 
