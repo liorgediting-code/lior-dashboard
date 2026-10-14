@@ -215,6 +215,12 @@ export default function BoardEditor({ boardId, initialName, initialClientId, ini
       const key = normKey(e);
       if (mod && key === "enter") { e.preventDefault(); return present ? exitPresent() : enterPresent(); }
       if (present) { if (key === "escape") exitPresent(); return; }
+      if (mod && (key === "c" || key === "x") && selected.size) {
+        // Done on keydown instead of waiting for the browser's copy event: Safari
+        // and Firefox don't fire it when nothing on the page is text-selected.
+        e.preventDefault();
+        return copySelection(key === "x");
+      }
       if (mod && key === "z") { e.preventDefault(); return e.shiftKey ? doRedo() : doUndo(); }
       if (mod && key === "y") { e.preventDefault(); return doRedo(); }
       if (mod && key === "a") { e.preventDefault(); return setSelected(new Set(elsRef.current.map((x) => x.id))); }
@@ -507,6 +513,27 @@ export default function BoardEditor({ boardId, initialName, initialClientId, ini
   // across boards and tabs, and plain text / images pasted from elsewhere still work.
   const CLIP_TAG = "drawboard/elements:";
   const pasteCount = useRef(0);
+  const copySelection = (cut: boolean) => {
+    const sel = elsRef.current.filter((el) => selected.has(el.id));
+    if (!sel.length) return;
+    const payload = CLIP_TAG + JSON.stringify(sel);
+    const fallback = () => {
+      const ta = document.createElement("textarea");
+      ta.value = payload;
+      ta.style.cssText = "position:fixed;opacity:0;pointer-events:none";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+    };
+    if (navigator.clipboard?.writeText) navigator.clipboard.writeText(payload).catch(fallback);
+    else fallback();
+    pasteCount.current = 0;
+    if (cut) {
+      commit(elsRef.current.filter((el) => !selected.has(el.id)), elsRef.current);
+      setSelected(new Set());
+    }
+  };
   const clipHandlers = useRef<{ copy: (e: ClipboardEvent, cut: boolean) => void; paste: (e: ClipboardEvent) => void }>();
   clipHandlers.current = {
     copy: (e, cut) => {
