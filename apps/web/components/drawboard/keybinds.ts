@@ -15,6 +15,7 @@ export const DEFAULT_KEYBINDS: Keybinds = {
   text: "t",
   image: "i",
   doc: "n",
+  funnel: "f",
   eraser: "e",
 };
 

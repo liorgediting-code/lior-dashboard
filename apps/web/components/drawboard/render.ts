@@ -1,4 +1,5 @@
 import rough from "roughjs";
+import { analyze, KIND_COLOR, KIND_LABEL, type StageView, type Status } from "./funnel-math";
 import type { El, View } from "./types";
 
 const thick = (el: El) => el.sw * 2 + 8; // body thickness of the block arrow
@@ -290,7 +291,71 @@ function drawDoc(ctx: CanvasRenderingContext2D, el: El) {
   ctx.restore();
 }
 
-export function drawElement(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, el: El) {
+const STATUS_COLOR: Record<Status, string> = { good: "#2f9e44", warn: "#f08c00", bad: "#e03131", unknown: "#868e96" };
+const fmtInt = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 0 });
+
+function drawFunnelStage(ctx: CanvasRenderingContext2D, el: El, view?: StageView) {
+  const st = el.stage;
+  if (!st) return;
+  const x = Math.min(el.x, el.x + el.w), y = Math.min(el.y, el.y + el.h);
+  const w = Math.abs(el.w), h = Math.abs(el.h), pad = 12;
+  const rtl = isRTL({ dir: "auto", text: st.name });
+  ctx.save();
+  roundRectPath(ctx, x, y, w, h, 10);
+  ctx.shadowColor = "rgba(0,0,0,.2)";
+  ctx.shadowBlur = 10;
+  ctx.shadowOffsetY = 3;
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+  ctx.shadowColor = "transparent";
+  ctx.strokeStyle = view?.bottleneck ? "#e03131" : "#d8d2c0";
+  ctx.lineWidth = view?.bottleneck ? 3 : 1.5;
+  ctx.stroke();
+  ctx.clip();
+  ctx.fillStyle = KIND_COLOR[st.kind];
+  ctx.fillRect(x, y, w, 6);
+  ctx.textBaseline = "top";
+  ctx.direction = rtl ? "rtl" : "ltr";
+  ctx.textAlign = rtl ? "right" : "left";
+  const tx = rtl ? x + w - pad : x + pad, maxW = w - pad * 2;
+  const fit = (text: string) => {
+    let t = text;
+    while (t.length > 1 && ctx.measureText(t).width > maxW) t = t.slice(0, -1);
+    return t === text ? t : t.trimEnd() + "…";
+  };
+  ctx.font = "bold 15px system-ui, sans-serif";
+  ctx.fillStyle = "#1b1b1f";
+  ctx.fillText(fit(st.name || "Stage"), tx, y + 14);
+  ctx.font = "11px system-ui, sans-serif";
+  ctx.fillStyle = "#888";
+  ctx.fillText(KIND_LABEL[st.kind].toUpperCase(), tx, y + 34);
+  ctx.font = "bold 26px system-ui, sans-serif";
+  ctx.fillStyle = st.volume == null ? "#bbb" : "#1b1b1f";
+  ctx.fillText(st.volume == null ? "—" : fmtInt(st.volume), tx, y + 50);
+  if (view && view.conv != null) {
+    const label = `${(view.conv * 100).toFixed(view.conv < 0.1 ? 1 : 0)}% from previous`;
+    ctx.font = "bold 12px system-ui, sans-serif";
+    const tw = ctx.measureText(label).width + 14;
+    const bx = rtl ? x + w - pad - tw : x + pad;
+    roundRectPath(ctx, bx, y + h - 26, tw, 20, 10);
+    ctx.fillStyle = STATUS_COLOR[view.status];
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.direction = "ltr";
+    ctx.textAlign = "left";
+    ctx.fillText(label, bx + 7, y + h - 22);
+  }
+  if (view?.bottleneck) {
+    ctx.direction = "ltr";
+    ctx.textAlign = "right";
+    ctx.font = "bold 10px system-ui, sans-serif";
+    ctx.fillStyle = "#e03131";
+    ctx.fillText("BOTTLENECK", x + w - 8, y + 12);
+  }
+  ctx.restore();
+}
+
+export function drawElement(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, el: El, stageView?: StageView) {
   const rc = rough.canvas(canvas);
   const opts = {
     stroke: el.stroke,
@@ -363,6 +428,9 @@ export function drawElement(canvas: HTMLCanvasElement, ctx: CanvasRenderingConte
     case "doc":
       drawDoc(ctx, el);
       break;
+    case "funnel":
+      drawFunnelStage(ctx, el, stageView);
+      break;
     case "image": {
       const img = getImage(el.src!);
       if (img.complete && img.naturalWidth) ctx.drawImage(img, el.x, el.y, el.w, el.h);
@@ -406,9 +474,10 @@ export function renderScene(
   ctx.fillStyle = dark ? "#121212" : "#ffffff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.setTransform(dpr * view.zoom, 0, 0, dpr * view.zoom, -view.x * view.zoom * dpr, -view.y * view.zoom * dpr);
+  const { views } = analyze(elements);
   for (const el of elements) {
     if (el.id === hideId) continue;
-    drawElement(canvas, ctx, el);
+    drawElement(canvas, ctx, el, views.get(el.id));
   }
   ctx.save();
   ctx.strokeStyle = "#6965db";
@@ -450,6 +519,7 @@ export function exportPNG(elements: El[], dark: boolean): string | null {
   ctx.fillStyle = dark ? "#121212" : "#ffffff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.setTransform(scale, 0, 0, scale, -minX * scale, -minY * scale);
-  elements.forEach((el) => drawElement(canvas, ctx, el));
+  const { views } = analyze(elements);
+  elements.forEach((el) => drawElement(canvas, ctx, el, views.get(el.id)));
   return canvas.toDataURL("image/png");
 }

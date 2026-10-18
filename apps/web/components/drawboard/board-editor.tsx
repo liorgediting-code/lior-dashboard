@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { saveBoardElements, renameBoard, setBoardClient } from "@/lib/actions/boards";
 import KeybindsDialog from "./keybinds-dialog";
+import { analyze, isStage, newStage, STAGE_H, STAGE_W } from "./funnel-math";
+import { FunnelSummary, StagePanel } from "./funnel-panels";
 import { loadKeybinds, normKey, saveKeybinds, type Keybinds } from "./keybinds";
 import { bounds, exportPNG, cropElement, getHandles, hitTest, isRTL, renderScene, resizeElement, setImageLoadCallback } from "./render";
 import { shrinkDataUrl, shrinkImages } from "./image-utils";
-import { TOOLS, uid, type El, type TextDir, type ToolId, type View } from "./types";
+import { TOOLS, uid, type El, type StageData, type StageFormula, type TextDir, type ToolId, type View } from "./types";
 
 const STROKES = ["#1e1e1e", "#e03131", "#2f9e44", "#1971c2", "#f08c00", "#ffffff"];
 const FILLS = ["transparent", "#ffc9c9", "#b2f2bb", "#a5d8ff", "#ffec99", "#d0bfff"];
@@ -48,7 +50,12 @@ export default function BoardEditor({ boardId, initialName, initialClientId, ini
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const [present, setPresent] = useState(false);
   const [openDoc, setOpenDoc] = useState<string | null>(null);
+  const [openStage, setOpenStage] = useState<string | null>(null);
+  const [showSummary, setShowSummary] = useState(true);
   const docBefore = useRef<El[] | null>(null);
+
+  const analysis = useMemo(() => analyze(elements), [elements]);
+  const stageEls = useMemo(() => elements.filter(isStage), [elements]);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -290,7 +297,7 @@ export default function BoardEditor({ boardId, initialName, initialClientId, ini
 
     if (present) {
       const hit = topHit(p.x, p.y);
-      drag.current = { kind: "pan", sx: e.clientX, sy: e.clientY, before, vx: view.x, vy: view.y, docId: hit?.type === "doc" ? hit.id : undefined };
+      drag.current = { kind: "pan", sx: e.clientX, sy: e.clientY, before, vx: view.x, vy: view.y, docId: hit?.type === "doc" || hit?.type === "funnel" ? hit.id : undefined };
       return;
     }
     if (tool === "doc") {
@@ -301,6 +308,17 @@ export default function BoardEditor({ boardId, initialName, initialClientId, ini
       setTool("select");
       docBefore.current = elsRef.current;
       setOpenDoc(el.id);
+      e.preventDefault();
+      return;
+    }
+
+    if (tool === "funnel") {
+      const el: El = { id: uid(), type: "funnel", x: p.x - STAGE_W / 2, y: p.y - STAGE_H / 2, w: STAGE_W, h: STAGE_H, stage: newStage({ name: "New stage" }), stroke, fill: "#ffffff", sw: 1, seed: 1 };
+      commit([...before, el], before);
+      setSelected(new Set([el.id]));
+      setTool("select");
+      docBefore.current = elsRef.current;
+      setOpenStage(el.id);
       e.preventDefault();
       return;
     }
@@ -336,7 +354,7 @@ export default function BoardEditor({ boardId, initialName, initialClientId, ini
         setSelected(sel);
         const orig = new Map<string, { x: number; y: number }>();
         before.forEach((el) => sel.has(el.id) && orig.set(el.id, { x: el.x, y: el.y }));
-        drag.current = { kind: "move", sx: p.x, sy: p.y, before, orig, docId: hit.type === "doc" ? hit.id : undefined, cx: e.clientX, cy: e.clientY };
+        drag.current = { kind: "move", sx: p.x, sy: p.y, before, orig, docId: hit.type === "doc" || hit.type === "funnel" ? hit.id : undefined, cx: e.clientX, cy: e.clientY };
       } else {
         setSelected(new Set());
         drag.current = { kind: "box", sx: p.x, sy: p.y, before };
@@ -664,13 +682,57 @@ export default function BoardEditor({ boardId, initialName, initialClientId, ini
   const openDocById = (id: string) => {
     docBefore.current = elsRef.current;
     setEditing(null);
-    setOpenDoc(id);
+    if (elsRef.current.find((x) => x.id === id)?.type === "funnel") setOpenStage(id);
+    else setOpenDoc(id);
   };
   const closeDoc = () => {
     const before = docBefore.current;
     if (before && before !== elsRef.current) { undo.current.push(before); redo.current = []; }
     docBefore.current = null;
     setOpenDoc(null);
+    setOpenStage(null);
+  };
+  const patchStage = (id: string, patch: Partial<StageData>) =>
+    setElements(elsRef.current.map((el) => (el.id === id && el.stage ? { ...el, stage: { ...el.stage, ...patch } } : el)));
+  // Formulas belong to the whole funnel, so every stage in it carries the same list.
+  const setFormulas = (ids: string[], formulas: StageFormula[]) => {
+    const set = new Set(ids);
+    commit(elsRef.current.map((el) => (set.has(el.id) && el.stage ? { ...el, stage: { ...el.stage, formulas } } : el)), elsRef.current);
+  };
+  const focusStage = (id: string) => {
+    const el = elsRef.current.find((x) => x.id === id);
+    const c = canvasRef.current;
+    if (!el || !c) return;
+    setSelected(new Set([id]));
+    setView((v) => ({ ...v, x: el.x + el.w / 2 - c.clientWidth / v.zoom / 2, y: el.y + el.h / 2 - c.clientHeight / v.zoom / 2 }));
+  };
+  // Starter chain: traffic -> lead -> call -> meeting booked -> closed, joined by arrows.
+  const addFunnelTemplate = () => {
+    const cv = canvasRef.current!, v = viewRef.current;
+    const gap = 90, n = 5, totalW = n * STAGE_W + (n - 1) * gap;
+    const x0 = v.x + cv.clientWidth / v.zoom / 2 - totalW / 2, y0 = v.y + cv.clientHeight / v.zoom / 2 - STAGE_H / 2;
+    const defs: Partial<StageData>[] = [
+      { name: "Traffic", kind: "traffic" }, { name: "Lead", kind: "lead" }, { name: "Call", kind: "call" },
+      { name: "Meeting booked", kind: "meeting_booked" }, { name: "Closed", kind: "closed" },
+    ];
+    const cards: El[] = defs.map((d, i) => ({
+      id: uid(), type: "funnel", x: x0 + i * (STAGE_W + gap), y: y0, w: STAGE_W, h: STAGE_H,
+      stage: newStage(d), stroke, fill: "#ffffff", sw: 1, seed: 1,
+    }));
+    const arrows: El[] = cards.slice(0, -1).map((c, i) => ({
+      id: uid(), type: "arrow", x: c.x + STAGE_W + 6, y: c.y + STAGE_H / 2, w: gap - 12, h: 0,
+      stroke: "#1e1e1e", fill: "transparent", sw: 2, seed: Math.floor(Math.random() * 1e6),
+    }));
+    commit([...elsRef.current, ...cards, ...arrows], elsRef.current);
+    setSelected(new Set(cards.map((c) => c.id)));
+    setShowSummary(true);
+    // Zoom so the whole chain sits left of the summary panel.
+    const zoom = Math.min(1, Math.max(0.2, (cv.clientWidth - 400) / (totalW + 80)));
+    setView({
+      zoom,
+      x: x0 + totalW / 2 - (cv.clientWidth - 340) / zoom / 2,
+      y: y0 + STAGE_H / 2 - cv.clientHeight / zoom / 2,
+    });
   };
   const patchDoc = (id: string, patch: Partial<El>) =>
     setElements(elsRef.current.map((el) => (el.id === id ? { ...el, ...patch } : el)));
@@ -762,6 +824,11 @@ export default function BoardEditor({ boardId, initialName, initialClientId, ini
           <span className="sep" />
           <button className="plain" onClick={doUndo} title="Undo (Ctrl+Z)">↶</button>
           <button className="plain" onClick={doRedo} title="Redo (Ctrl+Shift+Z)">↷</button>
+          <span className="sep" />
+          <button className="plain wide" onClick={addFunnelTemplate} title="New funnel (starter stages)">⛛ Funnel</button>
+          {stageEls.length > 0 && (
+            <button className={showSummary ? "plain on" : "plain"} onClick={() => setShowSummary((x) => !x)} title="Funnel summary">Σ</button>
+          )}
           <span className="sep" />
           <button className="plain" onClick={enterPresent} title="Present (Ctrl/⌘+Enter)">▶</button>
           <button className="plain" onClick={() => setShowKeys(true)} title="Keyboard shortcuts">⌨</button>
@@ -868,6 +935,16 @@ export default function BoardEditor({ boardId, initialName, initialClientId, ini
           );
         })()}
 
+        {openStage && (() => {
+          const el = elements.find((x) => x.id === openStage);
+          if (!el?.stage) return null;
+          return <StagePanel el={el} onPatch={(patch) => patchStage(el.id, patch)} onClose={closeDoc} />;
+        })()}
+
+        {!present && stageEls.length > 0 && showSummary && (
+          <FunnelSummary analysis={analysis} stages={stageEls} onFormulas={setFormulas} onFocus={focusStage} onClose={() => setShowSummary(false)} />
+        )}
+
         <div className="bottombar">
           <button onClick={() => zoomBy(1 / 1.2)} title="Zoom out">−</button>
           <button className="zl" onClick={() => setView((v) => ({ ...v, zoom: 1 }))} title="Reset zoom">
@@ -906,7 +983,7 @@ export default function BoardEditor({ boardId, initialName, initialClientId, ini
         )}
 
         <div className="hint">
-          Scroll to pan · Ctrl/⌘ + scroll to zoom · Hold Space to drag · Double-click text to edit · Click a doc to open it · Hold ⌘/Ctrl while dragging a handle to crop
+          Scroll to pan · Ctrl/⌘ + scroll to zoom · Hold Space to drag · Double-click text to edit · Click a doc or funnel stage to open it · Hold ⌘/Ctrl while dragging a handle to crop
         </div>
       </main>
 
