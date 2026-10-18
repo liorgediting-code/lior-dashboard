@@ -13,6 +13,7 @@ export const KIND_LABEL: Record<StageKind, string> = {
   meeting_booked: "Meeting booked",
   meeting_held: "Meeting held",
   closed: "Closed",
+  closed_upsell: "Closed (bigger product)",
   other: "Other",
 };
 
@@ -23,6 +24,7 @@ export const KIND_COLOR: Record<StageKind, string> = {
   meeting_booked: "#f08c00",
   meeting_held: "#e8590c",
   closed: "#2f9e44",
+  closed_upsell: "#1b7a34",
   other: "#868e96",
 };
 
@@ -33,6 +35,7 @@ export const DEFAULT_BENCH: Partial<Record<StageKind, [number, number]>> = {
   meeting_booked: [40, 70],
   meeting_held: [60, 80],
   closed: [15, 25],
+  closed_upsell: [10, 30],
 };
 
 export const HYPOTHESES: Partial<Record<StageKind, string[]>> = {
@@ -41,6 +44,7 @@ export const HYPOTHESES: Partial<Record<StageKind, string[]>> = {
   meeting_booked: ["Too much friction booking a time", "Call did not build enough trust or urgency", "Calendar availability is too narrow"],
   meeting_held: ["No-shows: no reminder the day before", "Booked too far in the future", "Meeting value not clear in advance"],
   closed: ["Pricing or offer friction", "No urgency or clear next step", "Meeting not tailored to the lead's problem"],
+  closed_upsell: ["Upsell offered too early or too late", "Bigger product not tied to the result of the first", "No follow-up after the first purchase"],
 };
 const GENERIC_HYPOTHESES = ["Message mismatch between this step and the previous one", "Too much friction at this step", "Volume too low to judge, collect more data"];
 
@@ -229,7 +233,7 @@ export interface MetricRow { key: string; label: string; value: number | null; k
 
 export interface FunnelAnalysis {
   ids: string[];
-  title: string;
+  names: string[]; // stage names in funnel order
   edges: EdgeStat[];
   bottleneck: EdgeStat | null;
   hypotheses: string[];
@@ -316,9 +320,9 @@ export function analyze(els: El[]): Analysis {
     }
 
     const totalCost = sumKnown(g.ids.map((id) => byId.get(id)!.cost));
-    const closed = g.ids.map((id) => byId.get(id)!).filter((s) => s.kind === "closed");
-    const closedVol = sumKnown(closed.map((s) => s.volume));
-    const deals = closed.filter((s) => s.volume != null && s.dealValue != null);
+    // CAC counts customers (first sales only); a bigger-product sale adds revenue but not a new customer.
+    const closedVol = sumKnown(g.ids.map((id) => byId.get(id)!).filter((s) => s.kind === "closed").map((s) => s.volume));
+    const deals = g.ids.map((id) => byId.get(id)!).filter((s) => (s.kind === "closed" || s.kind === "closed_upsell") && s.volume != null && s.dealValue != null);
     const revenue = deals.length ? deals.reduce((a, s) => a + s.volume! * s.dealValue!, 0) : null;
     const cac = totalCost != null && closedVol ? totalCost / closedVol : null;
     const roi = revenue != null && totalCost ? (revenue - totalCost) / totalCost : null;
@@ -348,7 +352,7 @@ export function analyze(els: El[]): Analysis {
     const target = bottleneck ? byId.get(bottleneck.to)! : null;
     funnels.push({
       ids: g.ids,
-      title: g.ids.map((id) => byId.get(id)!.name).join(" → "),
+      names: g.ids.map((id) => byId.get(id)!.name),
       edges, bottleneck,
       hypotheses: target ? HYPOTHESES[target.kind] ?? GENERIC_HYPOTHESES : [],
       totalCost, revenue, rows, formulas,

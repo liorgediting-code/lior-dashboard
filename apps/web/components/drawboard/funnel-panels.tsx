@@ -1,10 +1,17 @@
 "use client";
 
+import { isRTL } from "./render";
 import { benchFor, DEFAULT_BENCH, KIND_LABEL, type Analysis, type FunnelAnalysis, type MetricRow } from "./funnel-math";
 import { uid, type El, type StageData, type StageFormula, type StageKind } from "./types";
 
 const KINDS = Object.keys(KIND_LABEL) as StageKind[];
 const num = (v: string) => (v.trim() === "" ? null : Number.isFinite(Number(v)) ? Number(v) : null);
+/** Names joined by an arrow that points the way the text reads: in Hebrew the
+ *  flow goes right to left, so the arrow is reversed. */
+function flow(names: string[]): { text: string; dir: "rtl" | "ltr" } {
+  const rtl = isRTL({ dir: "auto", text: names.join(" ") });
+  return { text: names.join(rtl ? " ← " : " → "), dir: rtl ? "rtl" : "ltr" };
+}
 const stop = (e: React.KeyboardEvent, onEscape: () => void) => {
   e.stopPropagation();
   if (e.key === "Escape") onEscape();
@@ -20,7 +27,7 @@ export function fmtMetric(row: Pick<MetricRow, "kind" | "value">): string {
 }
 
 /** Modal for one stage's data: fixed fields, user-defined fields, notes. */
-export function StagePanel({ el, onPatch, onClose }: { el: El; onPatch: (patch: Partial<StageData>) => void; onClose: () => void }) {
+export function StagePanel({ el, onPatch, onAddNext, onClose }: { el: El; onPatch: (patch: Partial<StageData>) => void; onAddNext: () => void; onClose: () => void }) {
   const st = el.stage!;
   const bench = benchFor(st);
   const def = DEFAULT_BENCH[st.kind];
@@ -51,7 +58,7 @@ export function StagePanel({ el, onPatch, onClose }: { el: El; onPatch: (patch: 
             <label>Cost (₪)
               <input type="number" min="0" value={st.cost ?? ""} onChange={(e) => onPatch({ cost: num(e.target.value) })} onKeyDown={key} />
             </label>
-            {st.kind === "closed" && (
+            {(st.kind === "closed" || st.kind === "closed_upsell") && (
               <label>Deal value (₪)
                 <input type="number" min="0" value={st.dealValue ?? ""} onChange={(e) => onPatch({ dealValue: num(e.target.value) })} onKeyDown={key} />
               </label>
@@ -87,6 +94,8 @@ export function StagePanel({ el, onPatch, onClose }: { el: El; onPatch: (patch: 
           ))}
           <button className="add-row" onClick={() => onPatch({ custom: [...st.custom, { id: uid(), label: "", value: "" }] })}>＋ Add field</button>
 
+          <button className="add-row" onClick={onAddNext}>＋ Add next stage after this one</button>
+
           <div className="stage-sec">Notes / what to improve</div>
           <textarea
             className="stage-notes" dir="auto" rows={4} value={st.notes ?? ""} placeholder="Hypothesis, what to test, what changed…"
@@ -99,19 +108,20 @@ export function StagePanel({ el, onPatch, onClose }: { el: El; onPatch: (patch: 
 }
 
 function FunnelCard({
-  f, names, onFormulas, onFocus,
+  f, names, onFormulas, onFocus, onAdd,
 }: {
   f: FunnelAnalysis;
   names: Map<string, string>;
   onFormulas: (ids: string[], formulas: StageFormula[]) => void;
   onFocus: (id: string) => void;
+  onAdd: (afterId: string) => void;
 }) {
   const setFormulas = (next: StageFormula[]) => onFormulas(f.ids, next);
   const patch = (id: string, p: Partial<StageFormula>) => setFormulas(f.formulas.map((x) => (x.id === id ? { ...x, ...p } : x)));
   const b = f.bottleneck;
   return (
     <section className="fsum-card">
-      <div className="fsum-title" dir="auto">{f.title}</div>
+      <div className="fsum-title" dir={flow(f.names).dir}>{flow(f.names).text}</div>
 
       <div className="fsum-grid">
         {f.rows.map((r) => (
@@ -122,11 +132,12 @@ function FunnelCard({
         ))}
       </div>
 
+      <button className="add-row" onClick={() => onAdd(f.ids[f.ids.length - 1])}>＋ Add stage</button>
       <div className="fsum-sec">Steps</div>
       {f.edges.length === 0 && <div className="fsum-empty">Connect stages with arrows to see conversion.</div>}
       {f.edges.map((e) => (
         <button key={e.from + e.to} className={"fsum-edge " + e.status} onClick={() => onFocus(e.to)}>
-          <span dir="auto">{names.get(e.from)} → {names.get(e.to)}</span>
+          <span dir={flow([names.get(e.from)!, names.get(e.to)!]).dir}>{flow([names.get(e.from)!, names.get(e.to)!]).text}</span>
           <b>{e.conv == null ? "—" : `${(e.conv * 100).toFixed(1)}%`}</b>
           {e.bench && <small>target {e.bench[0]}–{e.bench[1]}%</small>}
         </button>
@@ -134,7 +145,7 @@ function FunnelCard({
 
       {b && (
         <div className="fsum-bottleneck">
-          <b>Fix first:</b> <span dir="auto">{names.get(b.from)} → {names.get(b.to)}</span>
+          <b>Fix first:</b> <span dir={flow([names.get(b.from)!, names.get(b.to)!]).dir}>{flow([names.get(b.from)!, names.get(b.to)!]).text}</span>
           <div>Loses {b.lost!.toLocaleString("en-US")} people ({(b.drop! * 100).toFixed(0)}%), the biggest leak.</div>
           <ul>{f.hypotheses.map((h) => <li key={h}>{h}</li>)}</ul>
         </div>
@@ -158,12 +169,13 @@ function FunnelCard({
 }
 
 export function FunnelSummary({
-  analysis, stages, onFormulas, onFocus, onClose,
+  analysis, stages, onFormulas, onFocus, onAdd, onClose,
 }: {
   analysis: Analysis;
   stages: El[];
   onFormulas: (ids: string[], formulas: StageFormula[]) => void;
   onFocus: (id: string) => void;
+  onAdd: (afterId: string) => void;
   onClose: () => void;
 }) {
   const names = new Map(stages.map((s) => [s.id, s.stage?.name || "Stage"]));
@@ -173,7 +185,7 @@ export function FunnelSummary({
         <b>Funnel summary</b>
         <button onClick={onClose} title="Hide">✕</button>
       </div>
-      {analysis.funnels.map((f) => <FunnelCard key={f.ids[0]} f={f} names={names} onFormulas={onFormulas} onFocus={onFocus} />)}
+      {analysis.funnels.map((f) => <FunnelCard key={f.ids[0]} f={f} names={names} onFormulas={onFormulas} onFocus={onFocus} onAdd={onAdd} />)}
     </aside>
   );
 }

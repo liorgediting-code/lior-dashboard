@@ -706,6 +706,26 @@ export default function BoardEditor({ boardId, initialName, initialClientId, ini
     setSelected(new Set([id]));
     setView((v) => ({ ...v, x: el.x + el.w / 2 - c.clientWidth / v.zoom / 2, y: el.y + el.h / 2 - c.clientHeight / v.zoom / 2 }));
   };
+  // New stage to the right of `afterId`, joined by an arrow. A second stage
+  // after the same one drops below the first, which makes a branch.
+  const addStageAfter = (afterId: string) => {
+    const els = elsRef.current, src = els.find((x) => x.id === afterId);
+    if (!src) return;
+    const gap = 90, x = src.x + src.w + gap;
+    let y = src.y;
+    const taken = (yy: number) => els.some((e) => isStage(e) && Math.abs(e.x - x) < STAGE_W && Math.abs(e.y - yy) < STAGE_H + 10);
+    while (taken(y)) y += STAGE_H + 30;
+    const card: El = { id: uid(), type: "funnel", x, y, w: STAGE_W, h: STAGE_H, stage: newStage({ name: "New stage", kind: "other" }), stroke, fill: "#ffffff", sw: 1, seed: 1 };
+    const arrow: El = { id: uid(), type: "arrow", x: src.x + src.w, y: src.y + src.h / 2, w: gap, h: y - src.y, stroke: "#1e1e1e", fill: "transparent", sw: 2, seed: Math.floor(Math.random() * 1e6) };
+    const next = [...els, card, arrow];
+    commit(next, els);
+    elsRef.current = next; // so focusStage below can find the new card before the re-render
+    docBefore.current = next;
+    setSelected(new Set([card.id]));
+    setOpenDoc(null);
+    setOpenStage(card.id);
+    focusStage(card.id);
+  };
   // Starter chain: traffic -> lead -> call -> meeting booked -> closed, joined by arrows.
   const addFunnelTemplate = () => {
     const cv = canvasRef.current!, v = viewRef.current;
@@ -938,11 +958,11 @@ export default function BoardEditor({ boardId, initialName, initialClientId, ini
         {openStage && (() => {
           const el = elements.find((x) => x.id === openStage);
           if (!el?.stage) return null;
-          return <StagePanel el={el} onPatch={(patch) => patchStage(el.id, patch)} onClose={closeDoc} />;
+          return <StagePanel el={el} onPatch={(patch) => patchStage(el.id, patch)} onAddNext={() => addStageAfter(el.id)} onClose={closeDoc} />;
         })()}
 
         {!present && stageEls.length > 0 && showSummary && (
-          <FunnelSummary analysis={analysis} stages={stageEls} onFormulas={setFormulas} onFocus={focusStage} onClose={() => setShowSummary(false)} />
+          <FunnelSummary analysis={analysis} stages={stageEls} onFormulas={setFormulas} onFocus={focusStage} onAdd={addStageAfter} onClose={() => setShowSummary(false)} />
         )}
 
         <div className="bottombar">

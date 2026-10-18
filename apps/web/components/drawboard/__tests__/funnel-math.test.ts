@@ -137,3 +137,16 @@ describe("slug", () => {
     expect(slug("פגישה שנקבעה")).toBe("פגישה_שנקבעה");
   });
 });
+
+describe("second closed stage (bigger product)", () => {
+  it("adds revenue but not a new customer, so CAC stays per first sale", () => {
+    const lead = card(0, 0, { name: "Lead", kind: "lead", volume: 100, cost: 1000 });
+    const small = card(300, 0, { name: "Small", kind: "closed", volume: 10, dealValue: 500 });
+    const big = card(600, 0, { name: "Big", kind: "closed_upsell", volume: 4, dealValue: 5000 });
+    const f = analyze([lead, small, big, arrow(lead, small), arrow(small, big)]).funnels[0];
+    const row = (k: string) => f.rows.find((r) => r.key === k)!.value;
+    expect(row("cac")).toBe(100); // 1000 / 10 customers, not / 14
+    expect(row("revenue")).toBe(10 * 500 + 4 * 5000);
+    expect(f.names).toEqual(["Lead", "Small", "Big"]);
+  });
+});

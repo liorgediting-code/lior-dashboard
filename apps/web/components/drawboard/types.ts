@@ -16,7 +16,7 @@ export type ToolId =
 
 export type TextDir = "auto" | "ltr" | "rtl";
 
-export type StageKind = "traffic" | "lead" | "call" | "meeting_booked" | "meeting_held" | "closed" | "other";
+export type StageKind = "traffic" | "lead" | "call" | "meeting_booked" | "meeting_held" | "closed" | "closed_upsell" | "other";
 
 export interface StageField { id: string; label: string; value: string }
 export interface StageFormula { id: string; name: string; expr: string }
