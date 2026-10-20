@@ -27,7 +27,7 @@ export function fmtMetric(row: Pick<MetricRow, "kind" | "value">): string {
 }
 
 /** Modal for one stage's data: fixed fields, user-defined fields, notes. */
-export function StagePanel({ el, onPatch, onAddNext, onClose }: { el: El; onPatch: (patch: Partial<StageData>) => void; onAddNext: () => void; onClose: () => void }) {
+export function StagePanel({ el, onPatch, onAddNext, onClose, readOnly = false }: { el: El; onPatch: (patch: Partial<StageData>) => void; onAddNext: () => void; onClose: () => void; readOnly?: boolean }) {
   const st = el.stage!;
   const bench = benchFor(st);
   const def = DEFAULT_BENCH[st.kind];
@@ -40,12 +40,12 @@ export function StagePanel({ el, onPatch, onAddNext, onClose }: { el: El; onPatc
       <div className="doc-panel stage-panel">
         <div className="doc-head">
           <input
-            className="doc-title" dir="auto" autoFocus value={st.name} placeholder="Stage name"
+            className="doc-title" dir="auto" autoFocus={!readOnly} readOnly={readOnly} value={st.name} placeholder="Stage name"
             onChange={(e) => onPatch({ name: e.target.value })} onKeyDown={key}
           />
           <button onClick={onClose} title="Close (Esc)">✕</button>
         </div>
-        <div className="stage-body">
+        <fieldset className="stage-body" disabled={readOnly}>
           <div className="stage-grid">
             <label>Type
               <select value={st.kind} onChange={(e) => onPatch({ kind: e.target.value as StageKind })} onKeyDown={key}>
@@ -82,39 +82,40 @@ export function StagePanel({ el, onPatch, onAddNext, onClose }: { el: El; onPatc
                 onChange={(e) => onPatch({ benchMax: num(e.target.value) ?? undefined })} onKeyDown={key} />
             </label>
           </div>
-          {!bench && <div className="stage-hint">No default for this type. Set a range to colour the conversion.</div>}
+          {!bench && !readOnly && <div className="stage-hint">No default for this type. Set a range to colour the conversion.</div>}
 
           <div className="stage-sec">Custom fields</div>
           {st.custom.map((f) => (
             <div className="field-row" key={f.id}>
               <input dir="auto" value={f.label} placeholder="Label" onChange={(e) => setField(f.id, { label: e.target.value })} onKeyDown={key} />
               <input dir="auto" value={f.value} placeholder="Value" onChange={(e) => setField(f.id, { value: e.target.value })} onKeyDown={key} />
-              <button title="Remove" onClick={() => onPatch({ custom: st.custom.filter((x) => x.id !== f.id) })}>✕</button>
+              {!readOnly && <button title="Remove" onClick={() => onPatch({ custom: st.custom.filter((x) => x.id !== f.id) })}>✕</button>}
             </div>
           ))}
-          <button className="add-row" onClick={() => onPatch({ custom: [...st.custom, { id: uid(), label: "", value: "" }] })}>＋ Add field</button>
+          {!readOnly && <button className="add-row" onClick={() => onPatch({ custom: [...st.custom, { id: uid(), label: "", value: "" }] })}>＋ Add field</button>}
 
-          <button className="add-row" onClick={onAddNext}>＋ Add next stage after this one</button>
+          {!readOnly && <button className="add-row" onClick={onAddNext}>＋ Add next stage after this one</button>}
 
           <div className="stage-sec">Notes / what to improve</div>
           <textarea
             className="stage-notes" dir="auto" rows={4} value={st.notes ?? ""} placeholder="Hypothesis, what to test, what changed…"
             onChange={(e) => onPatch({ notes: e.target.value })} onKeyDown={key}
           />
-        </div>
+        </fieldset>
       </div>
     </div>
   );
 }
 
 function FunnelCard({
-  f, names, onFormulas, onFocus, onAdd,
+  f, names, onFormulas, onFocus, onAdd, readOnly,
 }: {
   f: FunnelAnalysis;
   names: Map<string, string>;
   onFormulas: (ids: string[], formulas: StageFormula[]) => void;
   onFocus: (id: string) => void;
   onAdd: (afterId: string) => void;
+  readOnly: boolean;
 }) {
   const setFormulas = (next: StageFormula[]) => onFormulas(f.ids, next);
   const patch = (id: string, p: Partial<StageFormula>) => setFormulas(f.formulas.map((x) => (x.id === id ? { ...x, ...p } : x)));
@@ -132,9 +133,9 @@ function FunnelCard({
         ))}
       </div>
 
-      <button className="add-row" onClick={() => onAdd(f.ids[f.ids.length - 1])}>＋ Add stage</button>
+      {!readOnly && <button className="add-row" onClick={() => onAdd(f.ids[f.ids.length - 1])}>＋ Add stage</button>}
       <div className="fsum-sec">Steps</div>
-      {f.edges.length === 0 && <div className="fsum-empty">Connect stages with arrows to see conversion.</div>}
+      {f.edges.length === 0 && <div className="fsum-empty">{readOnly ? "No steps to show yet." : "Connect stages with arrows to see conversion."}</div>}
       {f.edges.map((e) => (
         <button key={e.from + e.to} className={"fsum-edge " + e.status} onClick={() => onFocus(e.to)}>
           <span dir={flow([names.get(e.from)!, names.get(e.to)!]).dir}>{flow([names.get(e.from)!, names.get(e.to)!]).text}</span>
@@ -151,25 +152,36 @@ function FunnelCard({
         </div>
       )}
 
-      <div className="fsum-sec">My metrics</div>
-      {f.custom.map(({ formula, value }) => (
-        <div className="fsum-formula" key={formula.id}>
-          <input dir="auto" value={formula.name} placeholder="Name" onChange={(e) => patch(formula.id, { name: e.target.value })} onKeyDown={(e) => e.stopPropagation()} />
-          <input value={formula.expr} placeholder="cost / vol.won" onChange={(e) => patch(formula.id, { expr: e.target.value })} onKeyDown={(e) => e.stopPropagation()} />
-          <b>{value == null ? "—" : value.toLocaleString("en-US", { maximumFractionDigits: 2 })}</b>
-          <button title="Remove" onClick={() => setFormulas(f.formulas.filter((x) => x.id !== formula.id))}>✕</button>
-        </div>
-      ))}
-      <button className="add-row" onClick={() => setFormulas([...f.formulas, { id: uid(), name: "", expr: "" }])}>＋ Add metric</button>
-      <div className="fsum-hint">
-        Use <code>cost</code>, <code>revenue</code>, <code>cac</code>, <code>vol.stage_name</code>, <code>cost.stage_name</code>, <code>stage_name.field_label</code> with + − × ÷ ( ).
-      </div>
+      {(!readOnly || f.custom.length > 0) && <div className="fsum-sec">My metrics</div>}
+      {f.custom.map(({ formula, value }) =>
+        readOnly ? (
+          <div className="fsum-metric" key={formula.id}>
+            <span dir="auto">{formula.name || "—"}</span>
+            <b>{value == null ? "—" : value.toLocaleString("en-US", { maximumFractionDigits: 2 })}</b>
+          </div>
+        ) : (
+          <div className="fsum-formula" key={formula.id}>
+            <input dir="auto" value={formula.name} placeholder="Name" onChange={(e) => patch(formula.id, { name: e.target.value })} onKeyDown={(e) => e.stopPropagation()} />
+            <input value={formula.expr} placeholder="cost / vol.won" onChange={(e) => patch(formula.id, { expr: e.target.value })} onKeyDown={(e) => e.stopPropagation()} />
+            <b>{value == null ? "—" : value.toLocaleString("en-US", { maximumFractionDigits: 2 })}</b>
+            <button title="Remove" onClick={() => setFormulas(f.formulas.filter((x) => x.id !== formula.id))}>✕</button>
+          </div>
+        ),
+      )}
+      {!readOnly && (
+        <>
+          <button className="add-row" onClick={() => setFormulas([...f.formulas, { id: uid(), name: "", expr: "" }])}>＋ Add metric</button>
+          <div className="fsum-hint">
+            Use <code>cost</code>, <code>revenue</code>, <code>cac</code>, <code>vol.stage_name</code>, <code>cost.stage_name</code>, <code>stage_name.field_label</code> with + − × ÷ ( ).
+          </div>
+        </>
+      )}
     </section>
   );
 }
 
 export function FunnelSummary({
-  analysis, stages, onFormulas, onFocus, onAdd, onClose,
+  analysis, stages, onFormulas, onFocus, onAdd, onClose, readOnly = false,
 }: {
   analysis: Analysis;
   stages: El[];
@@ -177,6 +189,7 @@ export function FunnelSummary({
   onFocus: (id: string) => void;
   onAdd: (afterId: string) => void;
   onClose: () => void;
+  readOnly?: boolean;
 }) {
   const names = new Map(stages.map((s) => [s.id, s.stage?.name || "Stage"]));
   return (
@@ -185,7 +198,7 @@ export function FunnelSummary({
         <b>Funnel summary</b>
         <button onClick={onClose} title="Hide">✕</button>
       </div>
-      {analysis.funnels.map((f) => <FunnelCard key={f.ids[0]} f={f} names={names} onFormulas={onFormulas} onFocus={onFocus} onAdd={onAdd} />)}
+      {analysis.funnels.map((f) => <FunnelCard key={f.ids[0]} f={f} names={names} onFormulas={onFormulas} onFocus={onFocus} onAdd={onAdd} readOnly={readOnly} />)}
     </aside>
   );
 }
